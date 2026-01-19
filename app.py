@@ -27,11 +27,16 @@ st.markdown("""
     margin-bottom: 30px;
 }
 .answer-box {
-    background-color: #f0f7ff;
-    padding: 15px;
-    border-radius: 8px;
-    border-left: 6px solid #1f4ed8;
+    background-color: #ffffff;
+    color: #000000 !important;   /* FORCE pure black text */
+    padding: 16px;
+    border-radius: 10px;
+    border-left: 6px solid #2563eb;
+    margin-top: 15px;
+    font-size: 16px;
+    line-height: 1.6;
 }
+
 .footer {
     font-size: 12px;
     color: #777;
