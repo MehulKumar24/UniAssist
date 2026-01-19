@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 from sentence_transformers import SentenceTransformer
@@ -10,84 +11,40 @@ st.set_page_config(
     layout="centered"
 )
 
-# ---------------- SAFE CUSTOM CSS ----------------
+# ---------------- CUSTOM CSS ----------------
 st.markdown("""
 <style>
-/* App background */
-.stApp {
-    background-color: #f8fafc;
+.main-title {
+    font-size: 40px;
+    font-weight: 700;
+    color: #1f4ed8;
+    text-align: center;
 }
-
-/* Headings */
-h1, h2, h3 {
-    color: #0f172a;
-    font-family: "Segoe UI", sans-serif;
+.sub-title {
+    font-size: 18px;
+    color: #555;
+    text-align: center;
+    margin-bottom: 30px;
 }
-
-/* IMPORTANT: prevent label blocking clicks */
-label {
-    color: #64748b !important;
-    pointer-events: none !important;
-}
-
-/* Text input box */
-input[type="text"] {
-    background-color: #ffffff !important;
-    color: #0f172a !important;
-    border-radius: 8px !important;
-    border: 1px solid #cbd5e1 !important;
-    padding: 10px !important;
-    pointer-events: auto !important;
-    opacity: 1 !important;
-}
-
-/* Button */
-button {
-    background-color: #2563eb !important;
-    color: white !important;
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-}
-
-/* Answer card */
 .answer-box {
-    background-color: #ffffff;
-    color: #0f172a;
-    padding: 16px;
-    border-radius: 10px;
-    border-left: 6px solid #2563eb;
-    margin-top: 15px;
-    font-size: 16px;
-    line-height: 1.6;
+    background-color: #f0f7ff;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 6px solid #1f4ed8;
 }
-
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background-color: #0b1220;
-    color: #e5e7eb;
-}
-
-section[data-testid="stSidebar"] h1,
-section[data-testid="stSidebar"] h2,
-section[data-testid="stSidebar"] h3,
-section[data-testid="stSidebar"] p {
-    color: #e5e7eb !important;
-}
-
-/* Footer */
 .footer {
     font-size: 12px;
-    color: #64748b;
+    color: #777;
     text-align: center;
-    margin-top: 40px;
+    margin-top: 50px;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- HEADER ----------------
-st.markdown("<h1 style='text-align:center;'>🎓 UniAssist</h1>", unsafe_allow_html=True)
+st.markdown("<div class='main-title'>🎓 UniAssist</div>", unsafe_allow_html=True)
 st.markdown(
-    "<p style='text-align:center; color:#475569;'>Academic & Internship Guidance Assistant</p>",
+    "<div class='sub-title'>Academic & Internship Guidance Assistant</div>",
     unsafe_allow_html=True
 )
 
@@ -98,9 +55,9 @@ st.divider()
 def load_data():
     return pd.read_csv("UniAssist_training_data.csv")
 
-qa_df = load_data()
-questions = qa_df["question"].astype(str).tolist()
-answers = qa_df["answer"].astype(str).tolist()
+qa_frame = load_data()
+questions = qa_frame["question"].astype(str).tolist()
+answers = qa_frame["answer"].astype(str).tolist()
 
 # ---------------- LOAD MODEL ----------------
 @st.cache_resource
@@ -110,38 +67,43 @@ def load_model():
 model = load_model()
 question_embeddings = model.encode(questions)
 
-# ---------------- SETTINGS ----------------
+# ---------------- SAFETY SETTINGS ----------------
 SIMILARITY_THRESHOLD = 0.65
 
-FALLBACK_MESSAGE = (
+SAFE_FALLBACK_MESSAGE = (
     "I’m sorry, I don’t have reliable information on this topic. "
     "UniAssist currently handles academic and internship-related queries only."
 )
 
-# ---------------- LOGIC ----------------
-def get_answer(query):
-    query_vec = model.encode([query])
+# ---------------- RETRIEVAL FUNCTION ----------------
+def get_safe_answer(user_query):
+    query_vec = model.encode([user_query])
     scores = cosine_similarity(query_vec, question_embeddings)[0]
-    best_idx = scores.argmax()
 
-    if scores[best_idx] < SIMILARITY_THRESHOLD:
-        return FALLBACK_MESSAGE
+    best_index = scores.argmax()
+    best_score = scores[best_index]
 
-    return answers[best_idx]
+    if best_score < SIMILARITY_THRESHOLD:
+        return SAFE_FALLBACK_MESSAGE
 
-# ---------------- INPUT ----------------
+    return answers[best_index]
+
+# ---------------- INPUT SECTION ----------------
 st.subheader("Ask your question")
 
 user_query = st.text_input(
-    label="Enter your query",
+    "Enter your query below",
     placeholder="e.g., What is the minimum attendance requirement?"
 )
 
-if st.button("Get Answer"):
+ask_button = st.button("Get Answer")
+
+# ---------------- RESPONSE SECTION ----------------
+if ask_button:
     if user_query.strip() == "":
         st.warning("Please enter a question.")
     else:
-        response = get_answer(user_query)
+        response = get_safe_answer(user_query)
         st.markdown("### 📘 Answer")
         st.markdown(
             f"<div class='answer-box'>{response}</div>",
@@ -152,17 +114,23 @@ if st.button("Get Answer"):
 with st.sidebar:
     st.title("About UniAssist")
     st.write("""
-    UniAssist is an academic-focused assistant designed to help students with:
-    • University regulations  
-    • Attendance policies  
+    UniAssist is an academic-focused assistant designed to help
+    students with university rules, attendance policies, internships,
+    examinations, and grading-related queries.
+    """)
+
+    st.subheader("Scope")
+    st.write("""
+    • University policies  
+    • Academic regulations  
     • Internship guidance  
-    • Examination and grading rules
+    • Examination rules  
     """)
 
     st.subheader("Disclaimer")
     st.write("""
     This tool provides informational guidance only.
-    Always refer to official university notifications.
+    For official decisions, always refer to university notifications.
     """)
 
     st.subheader("Author")
