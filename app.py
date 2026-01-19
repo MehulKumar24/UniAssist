@@ -14,59 +14,92 @@ st.set_page_config(
 )
 
 # =========================================================
-# CUSTOM CSS (UI STYLING)
+# CUSTOM CSS — FIXED CONTRAST & COLORS
 # =========================================================
 st.markdown(
     """
     <style>
+    /* App background */
     .stApp {
-        background-color: #f4f6f9;
+        background-color: #f8fafc;
     }
 
+    /* Main title */
     .main-title {
         font-size: 40px;
         font-weight: 700;
-        color: #1f4ed8;
+        color: #0f172a; /* dark navy */
         text-align: center;
-        margin-bottom: 5px;
+        margin-bottom: 4px;
     }
 
+    /* Subtitle */
     .sub-title {
         font-size: 18px;
-        color: #555;
+        color: #334155; /* slate */
         text-align: center;
         margin-bottom: 30px;
     }
 
-    textarea, input {
+    /* Labels & headings */
+    label, h3, h2, h1 {
+        color: #0f172a !important;
+    }
+
+    /* Text input */
+    input[type="text"] {
         background-color: #ffffff !important;
         color: #0f172a !important;
         border-radius: 8px !important;
+        border: 1px solid #cbd5e1 !important;
     }
 
+    /* Placeholder text */
+    input::placeholder {
+        color: #64748b !important;
+    }
+
+    /* Answer box */
     .answer-box {
         background-color: #ffffff;
         color: #0f172a;
         padding: 16px;
         border-radius: 10px;
-        border-left: 6px solid #1f4ed8;
+        border-left: 6px solid #2563eb;
         margin-top: 15px;
         font-size: 16px;
         line-height: 1.6;
     }
 
-    .footer {
-        font-size: 12px;
-        color: #777;
-        text-align: center;
-        margin-top: 50px;
-    }
-
+    /* Buttons */
     button {
         background-color: #2563eb !important;
-        color: white !important;
+        color: #ffffff !important;
         border-radius: 8px !important;
         font-weight: 600;
+        border: none !important;
+    }
+
+    button:hover {
+        background-color: #1d4ed8 !important;
+        color: #ffffff !important;
+    }
+
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+        background-color: #0f172a;
+    }
+
+    section[data-testid="stSidebar"] * {
+        color: #e5e7eb !important;
+    }
+
+    /* Footer */
+    .footer {
+        font-size: 12px;
+        color: #64748b;
+        text-align: center;
+        margin-top: 50px;
     }
     </style>
     """,
@@ -96,7 +129,7 @@ questions = qa_frame["question"].astype(str).tolist()
 answers = qa_frame["answer"].astype(str).tolist()
 
 # =========================================================
-# LOAD EMBEDDING MODEL
+# LOAD MODEL
 # =========================================================
 @st.cache_resource
 def load_model():
@@ -106,7 +139,7 @@ model = load_model()
 question_embeddings = model.encode(questions)
 
 # =========================================================
-# SAFETY & SCOPE SETTINGS
+# SAFETY SETTINGS
 # =========================================================
 SIMILARITY_THRESHOLD = 0.65
 
@@ -119,11 +152,11 @@ SAFE_FALLBACK_MESSAGE = (
 # RETRIEVAL FUNCTION
 # =========================================================
 def get_safe_answer(user_query: str) -> str:
-    query_vector = model.encode([user_query])
-    similarity_scores = cosine_similarity(query_vector, question_embeddings)[0]
+    query_vec = model.encode([user_query])
+    scores = cosine_similarity(query_vec, question_embeddings)[0]
 
-    best_index = similarity_scores.argmax()
-    best_score = similarity_scores[best_index]
+    best_index = scores.argmax()
+    best_score = scores[best_index]
 
     if best_score < SIMILARITY_THRESHOLD:
         return SAFE_FALLBACK_MESSAGE
@@ -149,10 +182,10 @@ if ask_button:
     if user_query.strip() == "":
         st.warning("Please enter a question.")
     else:
-        final_answer = get_safe_answer(user_query)
+        response = get_safe_answer(user_query)
         st.markdown("### 📘 Answer")
         st.markdown(
-            f"<div class='answer-box'>{final_answer}</div>",
+            f"<div class='answer-box'>{response}</div>",
             unsafe_allow_html=True
         )
 
