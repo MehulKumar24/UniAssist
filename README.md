@@ -74,27 +74,30 @@ Reduced risk of incorrect answers
 
 UniAssist/
 │
-├── Notebook_01_Data_Preparation.ipynb
-├── Notebook_02_Retrieval_System.ipynb
-├── Notebook_03_Safety_and_Scope.ipynb
-├── Notebook_04_Seq2Seq_Paraphrasing.ipynb
+├── 01_data_exploration.ipynb
+├── 02_retrieval_system.ipynb
+├── 03_safety_and_scope_control.ipynb
+├── 04_paraphrasing.ipynb
 │
 ├── UniAssist_training_data.csv
 ├── app.py
 ├── requirements.txt
+├── LICENSE
 └── README.md
 
 
 
 📘 Development Notebooks (Explanation)
 
-🔹 Notebook 01 – Dataset Creation & Validation
+🔹 Notebook 01 – Data Exploration & Validation
 
 Manual creation of question–answer pairs
 
 Categorization of academic and internship queries
 
 Dataset consistency and formatting checks
+
+Exploratory analysis of Q&A data distribution
 
 Outcome:
 A custom dataset (UniAssist_training_data.csv) used directly by the app.
@@ -103,27 +106,31 @@ A custom dataset (UniAssist_training_data.csv) used directly by the app.
 
 🔹 Notebook 02 – Semantic Retrieval System
 
-Sentence embeddings using SentenceTransformer
+Sentence embeddings using SentenceTransformer (all-MiniLM-L6-v2)
 
 Similarity computation using cosine similarity
 
-Evaluation of retrieval quality
+Evaluation of retrieval quality and threshold tuning
+
+Testing retrieval-based Q&A system
 
 Outcome:
-Reliable semantic matching between user queries and stored questions.
+Reliable semantic matching between user queries and stored questions with confidence scoring.
 
 
 
-🔹 Notebook 03 – Safety & Scope Control
+🔹 Notebook 03 – Safety, Scope Control & System Architecture
 
 Definition of in-scope vs out-of-scope queries
 
-Similarity threshold tuning
+Similarity threshold tuning (0.50 baseline)
 
 Polite fallback responses for unsupported questions
 
+Rate limiting and user safety mechanisms
+
 Outcome:
-Prevention of hallucinated or unrelated answers.
+Prevention of hallucinated or unrelated answers with robust scope control.
 
 
 
@@ -131,7 +138,7 @@ Prevention of hallucinated or unrelated answers.
 
 Training a Seq2Seq model to demonstrate ML training workflow
 
-Exploration of response paraphrasing
+Exploration of response paraphrasing techniques
 
 Note:
 The deployed system prioritizes retrieval-based reliability.
@@ -145,29 +152,81 @@ Python
 
 Streamlit – Web application framework
 
-Sentence-Transformers – Semantic embeddings
+Sentence-Transformers – Semantic embeddings (all-MiniLM-L6-v2)
 
 Scikit-learn – Similarity computation
 
 Pandas / NumPy – Data handling
 
-PyTorch – Model backend
+PyTorch – Model backend (via Sentence-Transformers)
+
+gTTS – Text-to-speech functionality
+
+ReportLab – PDF export capability
 
 
 
-🌐 Web Application (Deployment)
+✨ Enhanced Web Application Features
 
-Deployed using Streamlit Cloud
+The enhanced Streamlit app includes:
 
-Accessible via browser on:
+🏠 Home Page – Smart Q&A with confidence scoring
 
-Desktop
+📚 Browse FAQ – Category-based filtering with pagination
 
-Tablet
+🔍 Advanced Search – Multiple search modes (Keywords, Category, Similarity)
 
-Mobile devices
+📊 Analytics Dashboard – Track searches, confidence trends, feedback statistics
 
-Supports “Add to Home Screen” for app-like usage on phones
+⭐ Bookmarks – Save and organize important answers
+
+📝 Feedback System – User feedback collection and analysis
+
+⚡ Quick Tips – Helpful usage tips and best practices
+
+🔐 Admin Panel – Add/Manage Q&A pairs, view feedback, export data
+
+🌙 Dark/Light Mode – Theme toggle for comfortable reading
+
+🌐 Multi-language Support – English, Hindi, Spanish
+
+📄 PDF Export – Download answers as PDF documents
+
+🔊 Text-to-Speech – Audio playback of answers (when available)
+
+📊 Search History – Track all previous queries
+
+🔖 Persistent Data – Bookmarks, feedback, and custom Q&A saved locally
+
+
+
+🌐 Web Application (Deployment & Installation)
+
+Deployed using Streamlit
+
+Local Installation
+
+Clone the repository:
+git clone https://github.com/MehulKumar24/UniAssist.git
+cd UniAssist
+
+Install dependencies:
+pip install -r requirements.txt
+
+Run the application:
+streamlit run app.py
+
+Access via browser at: http://localhost:8501
+
+
+
+Requirements
+
+Python 3.8+
+
+All packages listed in requirements.txt
+
+Supported on Desktop, Tablet, and Mobile browsers
 
 
 
@@ -284,7 +343,7 @@ IIT Madras, Chennai
 
 ✅ Final Remarks
 
-UniAssist was built with an emphasis on:
+UniAssist Enhanced was built with an emphasis on:
 
 Understanding over automation
 
@@ -292,4 +351,12 @@ Safety over speculation
 
 Structure over improvisation
 
-The project demonstrates not only technical implementation but also responsible system design, making it suitable for both academic evaluation and future real-world extension. So copying of dataset is not recommended, codes may be copied as it is fundamental program and not unique. If dataset is copied without consent then legal action may apply as requirement. 
+User experience and accessibility
+
+The project demonstrates not only technical implementation but also responsible system design, making it suitable for both academic evaluation and future real-world extension.
+
+**Important:** Copying of dataset is not recommended. Codes may be referenced as they represent fundamental programming concepts. If the dataset is used without proper attribution, legal action may apply as required.
+
+---
+
+**Status:** Active Development | Last Updated: February 2026 | Version: Enhanced Edition 

@@ -531,8 +531,10 @@ with st.sidebar:
         st.markdown("**Mehul Kumar** - Developer\n\n*2026 Academic Project*")
 
 # ============ MAIN HEADER ============
-st.markdown(f"<div class='main-title'>{TRANSLATIONS[st.session_state.language]['title']}</div>", unsafe_allow_html=True)
-st.markdown(f"<div class='sub-title'>{TRANSLATIONS[st.session_state.language]['subtitle']}</div>", unsafe_allow_html=True)
+# Get language code from language name
+lang_code = LANGUAGES.get(st.session_state.language, 'en')
+st.markdown(f"<div class='main-title'>{TRANSLATIONS[lang_code]['title']}</div>", unsafe_allow_html=True)
+st.markdown(f"<div class='sub-title'>{TRANSLATIONS[lang_code]['subtitle']}</div>", unsafe_allow_html=True)
 st.divider()
 
 # ============ PAGE ROUTING ============
