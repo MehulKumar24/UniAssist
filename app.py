@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import json
@@ -161,6 +160,7 @@ body { background-color: #1a1a1a; }
     else:
         return """
 <style>
+body { background-color: #ffffff; }
 .main-title {
     font-size: 40px;
     font-weight: 700;
@@ -170,20 +170,20 @@ body { background-color: #1a1a1a; }
 }
 .sub-title {
     font-size: 16px;
-    color: #555;
+    color: #333;
     text-align: center;
     margin-bottom: 20px;
 }
 .answer-box {
-    background-color: #f0f7ff;
+    background-color: #e6f4ff;
     padding: 15px;
     border-radius: 8px;
     border-left: 6px solid #1f4ed8;
+    color: #000;
 }
-
 .footer {
     font-size: 12px;
-    color: #777;
+    color: #555;
     text-align: center;
     margin-top: 50px;
 }
@@ -580,7 +580,9 @@ if nav_choice == "🏠 Home":
                 
                 # Display answer
                 st.markdown("### 📘 Answer")
-                st.markdown(f"<div class='answer-box'>{answer}</div>", unsafe_allow_html=True)
+                # Escape answer text for safe HTML rendering
+                escaped_answer = str(answer).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+                st.markdown(f"<div class='answer-box'>{escaped_answer}</div>", unsafe_allow_html=True)
                 
                 # Confidence score
                 color_class, confidence_text = get_confidence_color(confidence)
@@ -605,7 +607,15 @@ if nav_choice == "🏠 Home":
                 
                 with action_col3:
                     if GTTS_AVAILABLE and st.button("🔊 Speak", use_container_width=True):
-                        audio = text_to_speech(answer, LANGUAGES[st.session_state.language])
+                        # Resolve language code safely
+                        raw_lang = st.session_state.language
+                        if raw_lang in LANGUAGES:
+                            lang_code = LANGUAGES[raw_lang]
+                        elif raw_lang in TRANSLATIONS:
+                            lang_code = raw_lang
+                        else:
+                            lang_code = 'en'
+                        audio = text_to_speech(answer, lang_code)
                         if audio:
                             st.audio(audio, format="audio/mp3")
                 
