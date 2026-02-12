@@ -531,10 +531,21 @@ with st.sidebar:
         st.markdown("**Mehul Kumar** - Developer\n\n*2026 Academic Project*")
 
 # ============ MAIN HEADER ============
-# Get language code from language name
-lang_code = LANGUAGES.get(st.session_state.language, 'en')
-st.markdown(f"<div class='main-title'>{TRANSLATIONS[lang_code]['title']}</div>", unsafe_allow_html=True)
-st.markdown(f"<div class='sub-title'>{TRANSLATIONS[lang_code]['subtitle']}</div>", unsafe_allow_html=True)
+# Resolve language code robustly:
+# - If the session value is a language name (e.g., 'English'), map to code via LANGUAGES
+# - If the session value is already a language code (e.g., 'en'), use it
+# - Fall back to English ('en') when mapping/translation is missing
+raw_lang = st.session_state.language
+if raw_lang in LANGUAGES:
+    lang_code = LANGUAGES[raw_lang]
+elif raw_lang in TRANSLATIONS:
+    lang_code = raw_lang
+else:
+    lang_code = 'en'
+
+trans = TRANSLATIONS.get(lang_code, TRANSLATIONS['en'])
+st.markdown(f"<div class='main-title'>{trans.get('title','UniAssist')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div class='sub-title'>{trans.get('subtitle','Academic & Internship Guidance Assistant')}</div>", unsafe_allow_html=True)
 st.divider()
 
 # ============ PAGE ROUTING ============
