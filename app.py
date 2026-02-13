@@ -560,7 +560,8 @@ if nav_choice == "🏠 Home":
         user_query = st.text_input(
             "Enter your query",
             placeholder="e.g., What is the minimum attendance requirement?",
-            key="home_query"
+            key="home_query",
+            label_visibility="collapsed"
         )
         
         col_search, col_example = st.columns([3, 1])
@@ -568,7 +569,7 @@ if nav_choice == "🏠 Home":
             ask_button = st.button("🔍 Get Answer", use_container_width=True, key="home_search")
         with col_example:
             if st.button("? Example", use_container_width=True, key="home_example"):
-                user_query = "What is the minimum attendance requirement?"
+                st.session_state.home_query = "What is the minimum attendance requirement?"
                 st.rerun()
         
         if ask_button and user_query.strip():
@@ -666,6 +667,17 @@ elif nav_choice == "📚 Browse FAQ":
     with col2:
         items_per_page = st.selectbox("Items per page:", [5, 10, 20, 50], key="faq_items")
     
+    # Reset pagination when filters change
+    if not hasattr(st.session_state, '_faq_last_category'):
+        st.session_state._faq_last_category = selected_category
+        st.session_state._faq_last_items = items_per_page
+    
+    if (selected_category != st.session_state._faq_last_category or 
+        items_per_page != st.session_state._faq_last_items):
+        st.session_state.faq_page = 0
+        st.session_state._faq_last_category = selected_category
+        st.session_state._faq_last_items = items_per_page
+    
     # Filter Q&A
     if selected_category == "All Categories":
         filtered_indices = list(range(len(questions)))
@@ -674,7 +686,11 @@ elif nav_choice == "📚 Browse FAQ":
     
     # Pagination
     total_items = len(filtered_indices)
-    total_pages = (total_items + items_per_page - 1) // items_per_page
+    total_pages = max(1, (total_items + items_per_page - 1) // items_per_page)
+    
+    # Ensure current page is valid
+    if st.session_state.faq_page >= total_pages:
+        st.session_state.faq_page = 0
     
     col_prev, col_page, col_next = st.columns([1, 2, 1])
     with col_prev:
