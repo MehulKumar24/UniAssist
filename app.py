@@ -157,8 +157,6 @@ with st.sidebar:
         3️⃣ **Browse FAQ** - Explore by category
         4️⃣ **Save Answers** - Bookmark important Q&As
         5️⃣ **Rate Answers** - Help us improve
-        
-        **Password:** `admin123`
         """)
     
     with st.expander("ℹ️ About"):
@@ -187,18 +185,7 @@ if nav == "🏠 Home":
         # Query input
         query = st.text_input("Enter your question:", placeholder="What is the minimum attendance requirement?", key="ex_query", label_visibility="collapsed")
         
-        btn_col1, btn_col2, btn_col3 = st.columns([2, 1, 0.8])
-        with btn_col1:
-            btn = st.button("🔍 Get Answer", use_container_width=True, type="primary")
-        with btn_col2:
-            if st.button("💡 Example", use_container_width=True):
-                st.session_state.ex_query = "What is the minimum attendance requirement?"
-                st.toast("✅ Loaded example question", icon="ℹ️")
-                st.rerun()
-        with btn_col3:
-            if st.button("🔄 Clear", use_container_width=True):
-                st.session_state.ex_query = ""
-                st.rerun()
+        btn = st.button("🔍 Get Answer", use_container_width=True, type="primary")
         
         if btn and query.strip():
             query = query.strip()[:500]
