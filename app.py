@@ -923,26 +923,30 @@ elif nav_choice == "🔐 Admin Panel":
         # Add Q&A
         with admin_tab1:
             st.markdown("### Add New Q&A Pair")
-            new_question = st.text_input("Question:", key="new_question")
-            new_answer = st.text_area("Answer:", key="new_answer")
-            new_category = st.selectbox("Category:", unique_categories + ["New Category"], key="admin_cat")
+            new_question = st.text_input("Question:", key="new_question", label_visibility="collapsed")
+            new_answer = st.text_area("Answer:", key="new_answer", label_visibility="collapsed")
             
-            if new_category == "New Category":
-                new_category = st.text_input("Enter new category name:", key="new_cat_name")
+            # Category selection - fixed to avoid empty string override
+            category_choice = st.radio("Add to:", ["Existing Category", "New Category"], key="cat_choice", horizontal=True)
             
-            if st.button("Add Q&A Pair", type="primary", key="add_qa"):
-                if new_question and new_answer and new_category:
+            if category_choice == "Existing Category":
+                new_category = st.selectbox("Select category:", unique_categories, key="admin_cat")
+            else:
+                new_category = st.text_input("New category name:", key="new_cat_name", label_visibility="collapsed")
+            
+            if st.button("Add Q&A Pair", type="primary", key="add_qa", use_container_width=True):
+                if new_question.strip() and new_answer.strip() and new_category.strip():
                     st.session_state.custom_qa_pairs.append({
-                        'question': new_question,
-                        'answer': new_answer,
-                        'category': new_category,
+                        'question': new_question.strip(),
+                        'answer': new_answer.strip(),
+                        'category': new_category.strip(),
                         'added_on': datetime.now().isoformat()
                     })
                     save_persistent_data()
-                    st.success("Q&A pair added successfully!")
+                    st.success("✅ Q&A pair added! (Reload to index in search)")
                     st.rerun()
                 else:
-                    st.warning("Please fill all fields")
+                    st.error("❌ Fill all fields before adding")
         
         # Manage Q&A
         with admin_tab2:
