@@ -22,15 +22,15 @@ for key, val in defaults.items():
 st.markdown("""<style>
 body{background:#ffffff;color:#000;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif}
 .main-title{font-size:48px;font-weight:800;color:#1f4ed8;text-align:center;margin-bottom:5px;letter-spacing:-0.5px}
-.sub-title{font-size:16px;color:#555;text-align:center;margin-bottom:25px;font-weight:500}
+.sub-title{font-size:16px;color:#333;text-align:center;margin-bottom:25px;font-weight:500}
 .answer-box{background:linear-gradient(135deg, #e6f4ff 0%, #f0f8ff 100%);padding:22px;
 border-radius:12px;border-left:5px solid #1f4ed8;color:#000;margin:15px 0;box-shadow:0 2px 8px rgba(31,78,216,0.08)}
 .confidence-high{color:#059669;font-weight:700;font-size:16px}
 .confidence-medium{color:#d97706;font-weight:700;font-size:16px}
 .confidence-low{color:#dc2626;font-weight:700;font-size:16px}
-.footer{font-size:12px;color:#888;text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb}
-.stat-card{background:#f9fafb;padding:16px;border-radius:10px;border-left:3px solid #1f4ed8}
-.sidebar-section{background:#f0f4f9;padding:14px;border-radius:8px;margin:10px 0}
+.footer{font-size:12px;color:#666;text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb}
+.stat-card{background:#f9fafb;padding:16px;border-radius:10px;border-left:3px solid #1f4ed8;color:#000}
+.sidebar-section{background:#f0f4f9;padding:14px;border-radius:8px;margin:10px 0;color:#000}
 </style>""", unsafe_allow_html=True)
 
 # Data persistence
