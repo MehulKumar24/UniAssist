@@ -1,4 +1,4 @@
-# app.py (fixed)
+# app.py — UniAssist (Home: Enter, Copy, Bookmark, Rate fixes; clears input after search)
 import streamlit as st
 import pandas as pd
 import json
@@ -17,8 +17,8 @@ defaults = {
     'search_history': [], 'bookmarks': [], 'feedback_data': [], 'admin_mode': False,
     'admin_password': "admin123", 'custom_qa_pairs': [], 'rate_limit_count': 0,
     'faq_page': 0, 'fb_q': '', 'fb_c': '', 'fb_r': 3, 'ex_query': '', 'new_q': '', 'new_a': '', 'new_cat_name': '',
-    # nav_menu will be set by the radio widget; do not assign after creation
-    'navigate_to': None
+    'navigate_to': None,
+    'last_query': None, 'last_answer': None, 'last_conf': 0.0, 'last_rel': []
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -36,11 +36,13 @@ body{background:#0b0f12;color:#e6eef6;font-family:'Segoe UI',Tahoma,Geneva,Verda
 .footer{font-size:12px;color:#94a3b8;text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid #111827}
 .stat-card{background:#071025;padding:16px;border-radius:10px;border-left:3px solid #1f4ed8;color:#fff}
 .sidebar-section{background:#0b1220;padding:14px;border-radius:8px;margin:10px 0;color:#fff}
-.btn-like{display:inline-block;padding:8px 14px;border-radius:8px;background:#1f4ed8;color:white;border:none;font-weight:600;cursor:pointer}
+.btn-like{display:inline-block;padding:10px 16px;border-radius:8px;background:#0f1722;color:#e6eef6;border:1px solid #222;cursor:pointer;font-weight:600;margin-right:10px}
+.btn-like-primary{background:#ef4444;color:white;border:none}
 .btn-like:active{transform:translateY(1px)}
+.small-gap{margin-right:12px}
 </style>""", unsafe_allow_html=True)
 
-# ---------------- Safe data persistence ----------------
+# ---------------- Data persistence ----------------
 DATA_FILE = 'uniassist_data.json'
 def save_data():
     try:
@@ -86,14 +88,13 @@ def load_qa():
         return [], [], []
 
 q, a, c = load_qa()
-# append session custom QA (runtime)
 if st.session_state.custom_qa_pairs:
     for qa in st.session_state.custom_qa_pairs:
         q.append(qa.get('question', ''))
         a.append(qa.get('answer', ''))
         c.append(qa.get('category', 'Custom'))
 
-# ---------------- Model loading ----------------
+# ---------------- Model ----------------
 @st.cache_resource
 def load_model_embed():
     try:
@@ -105,7 +106,7 @@ model = load_model_embed()
 if model is None:
     st.warning("Embedding model not available. Semantic search will be disabled until model loads.")
 
-# ---------------- Build embeddings (cache only on questions tuple) ----------------
+# ---------------- Embeddings ----------------
 @st.cache_resource
 def build_embeddings(questions_tuple):
     if model is None or not questions_tuple:
@@ -122,16 +123,7 @@ categories = sorted(set(x for x in c if str(x).strip()))
 
 THRESHOLD = 0.50
 
-# ---------------- Navigation pre-processing ----------------
-# If a navigation target was requested by a button (navigate_to), set the default selection BEFORE creating the radio widget.
-nav_options = ["🏠 Home", "📚 Browse FAQ", "⭐ Bookmarks", "📝 Feedback", "🔐 Admin"]
-if st.session_state.get('navigate_to'):
-    if st.session_state['navigate_to'] in nav_options:
-        # set the initial nav menu to the requested one (safe because we do this before the widget creation)
-        st.session_state['nav_menu'] = st.session_state['navigate_to']
-    st.session_state['navigate_to'] = None
-
-# ---------------- Search function ----------------
+# ---------------- Search ----------------
 def search(query):
     if st.session_state.rate_limit_count > 100:
         st.session_state.rate_limit_count = 0
@@ -158,7 +150,7 @@ def search(query):
     except Exception:
         return None, 0.0, []
 
-# ---------------- Bookmarks & Feedback ----------------
+# ---------------- Bookmark/Feedback ----------------
 def add_bookmark(qn, ans):
     if not any(b.get('question') == qn for b in st.session_state.bookmarks):
         st.session_state.bookmarks.append({'timestamp': datetime.now().isoformat(), 'question': qn, 'answer': ans})
@@ -186,13 +178,12 @@ def add_feedback(qry, rate, comm):
         st.error(f"Feedback save error: {e}")
         return False
 
-# ---------------- Copy button (styled) ----------------
+# ---------------- Copy button ----------------
 def copy_button(text, button_id, label="Copy"):
-    # create a styled button that matches UI
     safe_text = html.escape(text).replace("\n", "\\n").replace("'", "\\'")
     html_button = f"""
     <div>
-      <button class="btn-like" id="btn_{button_id}">{label}</button>
+      <button class="btn-like" id="btn_{button_id}" style="padding:9px 14px;">{label}</button>
     </div>
     <script>
     const btn = document.getElementById("btn_{button_id}");
@@ -200,27 +191,32 @@ def copy_button(text, button_id, label="Copy"):
       navigator.clipboard.writeText('{safe_text}').then(()=> {{
         const old = btn.innerText;
         btn.innerText = 'Copied';
-        setTimeout(()=> btn.innerText = old, 1200);
+        setTimeout(()=> btn.innerText = old, 1100);
       }}).catch(()=> {{
         btn.innerText = 'Failed';
-        setTimeout(()=> btn.innerText = '{label}', 1200);
+        setTimeout(()=> btn.innerText = '{label}', 1100);
       }});
     }};
     </script>
     """
-    components.html(html_button, height=38)
+    components.html(html_button, height=44)
+
+# ---------------- Navigation pre-process ----------------
+nav_options = ["🏠 Home", "📚 Browse FAQ", "⭐ Bookmarks", "📝 Feedback", "🔐 Admin"]
+if st.session_state.get('navigate_to'):
+    if st.session_state['navigate_to'] in nav_options:
+        st.session_state['nav_menu'] = st.session_state['navigate_to']
+    st.session_state['navigate_to'] = None
 
 # ---------------- Sidebar ----------------
 with st.sidebar:
     st.markdown("<div style='text-align:center;margin-bottom:20px'><h2 style='color:#1f4ed8'>📚 UniAssist</h2></div>", unsafe_allow_html=True)
-    # create radio widget (reads initial value from session_state['nav_menu'] if present)
     try:
         default_index = nav_options.index(st.session_state.get('nav_menu', nav_options[0]))
     except ValueError:
         default_index = 0
     nav = st.radio("📍 Choose a Section:", nav_options, index=default_index, key="nav_menu")
     st.divider()
-    # Quick Stats removed (kept as comment)
     st.markdown("<div class='sidebar-section'><b>📖 Dataset Info</b><br>", unsafe_allow_html=True)
     st.write(f"• **Total Q&A:** {len(q)}")
     st.write(f"• **Categories:** {len(categories)}")
@@ -250,57 +246,89 @@ st.markdown("<div class='main-title'>🎓 UniAssist</div>", unsafe_allow_html=Tr
 st.markdown("<div class='sub-title'>AI-Powered Academic Guidance Assistant</div>", unsafe_allow_html=True)
 st.divider()
 
+# ---------------- Helper: run search ----------------
+def run_search_from_value(query_value):
+    q_in = str(query_value).strip()[:500]
+    if not q_in:
+        st.session_state['last_query'] = None
+        st.session_state['last_answer'] = None
+        st.session_state['last_conf'] = 0.0
+        st.session_state['last_rel'] = []
+        return
+    ans, conf, rel = search(q_in)
+    st.session_state['last_query'] = q_in
+    st.session_state['last_answer'] = ans
+    st.session_state['last_conf'] = conf
+    st.session_state['last_rel'] = rel
+    # store history
+    if ans:
+        st.session_state.search_history.append({'query': q_in, 'confidence': conf, 'timestamp': datetime.now().isoformat()})
+        if len(st.session_state.search_history) > 200:
+            st.session_state.search_history.pop(0)
+
 # ---------------- HOME ----------------
 if nav == "🏠 Home":
     col1, col2 = st.columns([2, 1])
     with col1:
         st.subheader("🤔 Ask Your Question")
-        query = st.text_input("Enter your question:", placeholder="What is the minimum attendance requirement?", key="ex_query", label_visibility="collapsed")
-        if st.button("🔍 Get Answer", use_container_width=True, type="primary"):
-            if not query.strip():
-                st.error("❌ Please enter a question first.")
-            else:
-                q_in = query.strip()[:500]
-                with st.spinner("🔄 Searching knowledge base..."):
-                    ans, conf, rel = search(q_in)
-                if ans:
-                    st.session_state.search_history.append({'query': q_in, 'confidence': conf, 'timestamp': datetime.now().isoformat()})
-                    if len(st.session_state.search_history) > 200:
-                        st.session_state.search_history.pop(0)
-                    st.markdown(f"<div class='answer-box'>{html.escape(ans)}</div>", unsafe_allow_html=True)
-                    color = "confidence-high" if conf >= 0.7 else "confidence-medium" if conf >= 0.5 else "confidence-low"
-                    text = "🟢 High" if conf >= 0.7 else "🟡 Medium" if conf >= 0.5 else "🔴 Low"
-                    st.markdown(f"<p style='text-align:center;'><span class='{color}'>{text} Confidence: {conf:.0%}</span></p>", unsafe_allow_html=True)
-                    unique = f"{abs(hash(q_in))}_{int(datetime.now().timestamp())%100000}"
-                    c1, c2, c3, c4, c5 = st.columns(5)
-                    with c1:
-                        if st.button("⭐ Bookmark", key=f"bm_home_{unique}"):
-                            if add_bookmark(q_in, ans):
-                                st.success("✅ Saved to bookmarks!")
-                            else:
-                                st.info("✓ Already bookmarked")
-                    with c2:
-                        copy_button(ans, f"home_{unique}", label="Copy")
-                    with c3:
-                        if st.button("🗳️ Rate", key=f"rate_home_{unique}"):
-                            # request navigation to Feedback before rerun (safe)
-                            st.session_state['navigate_to'] = "📝 Feedback"
-                            # prefill feedback question
-                            st.session_state['fb_q'] = q_in
-                            # trigger rerun safely
-                            st.rerun()
-                    if rel:
-                        st.markdown("### 🔗 Related Questions")
-                        for i, r in enumerate(rel, 1):
-                            with st.expander(f"Q{i}: {r['q'][:70]}... ({int(r['s']*100)}%)"):
-                                st.write(r['a'])
-                                if st.button(f"⭐ Save Q{i}", key=f"save_rel_{unique}_{i}"):
-                                    if add_bookmark(r['q'], r['a']):
-                                        st.success("✅ Saved!")
-                                    else:
-                                        st.info("✓ Already bookmarked")
+        # Use a form so Enter works reliably
+        with st.form("ask_form", clear_on_submit=False):
+            user_q = st.text_input("Question:", value="", placeholder="What is the minimum attendance requirement?", key="home_input")
+            submitted = st.form_submit_button("🔍 Get Answer")
+            if submitted:
+                # run search and then clear input so it doesn't remain in typing area
+                run_search_from_value(user_q)
+                # clear the input box so user doesn't see the typed question after search
+                try:
+                    st.session_state['home_input'] = ""
+                except Exception:
+                    pass
+                # re-render to show results immediately
+                st.rerun()
+
+        # Show current last answer (if exists)
+        ans = st.session_state.get('last_answer')
+        conf = st.session_state.get('last_conf', 0.0)
+        rel = st.session_state.get('last_rel', [])
+
+        if ans:
+            st.markdown(f"<div class='answer-box'>{html.escape(ans)}</div>", unsafe_allow_html=True)
+            color = "confidence-high" if conf >= 0.7 else "confidence-medium" if conf >= 0.5 else "confidence-low"
+            text = "🟢 High" if conf >= 0.7 else "🟡 Medium" if conf >= 0.5 else "🔴 Low"
+            st.markdown(f"<p style='text-align:center;'><span class='{color}'>{text} Confidence: {conf:.0%}</span></p>", unsafe_allow_html=True)
+
+            # Inline action buttons
+            unique = f"{abs(hash(st.session_state.get('last_query','')))}_{int(datetime.now().timestamp())%100000}"
+            c1, c2, c3 = st.columns([1,1,1])
+            with c1:
+                if st.button("⭐ Bookmark", key=f"bm_home_{unique}"):
+                    lq = st.session_state.get('last_query')
+                    la = st.session_state.get('last_answer')
+                    if lq and la:
+                        if add_bookmark(lq, la):
+                            st.success("✅ Saved to bookmarks!")
+                        else:
+                            st.info("✓ Already bookmarked")
+                    else:
+                        st.info("No answer to bookmark")
+            with c2:
+                la = st.session_state.get('last_answer')
+                if la:
+                    copy_button(la, f"home_{unique}", label="Copy")
                 else:
-                    st.warning("⚠️ No reliable answer found. Try browsing FAQ or provide more details.")
+                    st.markdown("<button class='btn-like' disabled style='opacity:0.5'>Copy</button>", unsafe_allow_html=True)
+            with c3:
+                if st.button("🗳️ Rate", key=f"rate_home_{unique}"):
+                    lq = st.session_state.get('last_query')
+                    if lq:
+                        st.session_state['navigate_to'] = "📝 Feedback"
+                        st.session_state['fb_q'] = lq
+                        st.rerun()
+                    else:
+                        st.info("No question to rate")
+        else:
+            st.info("Ask a question (press Enter inside the input or click Get Answer) to see results.")
+
     with col2:
         st.markdown("### 📊 Your Activity")
         with st.container():
@@ -309,7 +337,7 @@ if nav == "🏠 Home":
             st.metric("⭐ Bookmarks", len(st.session_state.bookmarks))
             st.metric("💬 Ratings", len(st.session_state.feedback_data))
             if st.session_state.search_history:
-                avg_conf = np.mean([h.get('confidence', 0) for h in st.session_state.search_history])
+                avg_conf = np.mean([h.get('confidence', 0) for h in st.session_state.search_history]) if st.session_state.search_history else 0
                 st.metric("Avg Confidence", f"{avg_conf:.0%}")
             st.markdown("</div>", unsafe_allow_html=True)
 
