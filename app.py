@@ -45,14 +45,18 @@ def save_data():
         return False
 
 def load_data_from_file():
-    if os.path.exists('uniassist_data.json'):
-        try:
+    try:
+        if os.path.exists('uniassist_data.json'):
             with open('uniassist_data.json', 'r') as f:
                 data = json.load(f)
-                st.session_state.bookmarks = data.get('bookmarks', [])
-                st.session_state.feedback_data = data.get('feedback', [])
-                st.session_state.custom_qa_pairs = data.get('custom_qa', [])
-        except: pass
+
+            st.session_state.bookmarks = data.get('bookmarks', [])
+            st.session_state.feedback_data = data.get('feedback', [])
+            st.session_state.custom_qa_pairs = data.get('custom_qa', [])
+    except:
+        st.session_state.bookmarks = []
+        st.session_state.feedback_data = []
+        st.session_state.custom_qa_pairs = []
 
 load_data_from_file()
 
@@ -117,8 +121,20 @@ def remove_bookmark(qn):
     save_data()
 
 def add_feedback(qry, rate, comm=""):
-    st.session_state.feedback_data.append({'timestamp': datetime.now().isoformat(), 'query': qry, 'rating': int(rate), 'comment': comm})
-    save_data()
+    try:
+        st.session_state.feedback_data.append({
+            'timestamp': datetime.now().isoformat(),
+            'query': str(qry),
+            'rating': int(rate),
+            'comment': str(comm)
+        })
+
+        if len(st.session_state.feedback_data) > 500:
+            st.session_state.feedback_data.pop(0)
+
+        save_data()
+    except Exception as e:
+        st.error(f"Feedback save error: {e}")
 
 # Enhanced Sidebar
 with st.sidebar:
@@ -127,20 +143,6 @@ with st.sidebar:
     nav = st.radio("📍 Choose a Section:", ["🏠 Home", "📚 Browse FAQ", "⭐ Bookmarks", "📝 Feedback", "🔐 Admin"], key="nav_menu")
     
     st.divider()
-    
-    st.markdown("<div class='sidebar-section'><b>📊 Quick Stats</b><br>", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("🔍", len(st.session_state.search_history), label_visibility="collapsed")
-    with col2:
-        st.metric("⭐", len(st.session_state.bookmarks), label_visibility="collapsed")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("💬", len(st.session_state.feedback_data), label_visibility="collapsed")
-    with col2:
-        st.metric("❓", len(st.session_state.custom_qa_pairs), label_visibility="collapsed")
-    st.markdown("</div>", unsafe_allow_html=True)
     
     st.markdown("<div class='sidebar-section'><b>📖 Dataset Info</b><br>", unsafe_allow_html=True)
     st.write(f"• **Total Q&A:** {len(q)}")
@@ -323,47 +325,59 @@ elif nav == "⭐ Bookmarks":
 # FEEDBACK
 elif nav == "📝 Feedback":
     st.subheader("📝 Provide Feedback")
-    
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        fb_q = st.text_input("Question (optional):", value=st.session_state.fb_q, key="feedback_q_input", label_visibility="collapsed", placeholder="Which question are you rating?")
-        fb_c = st.text_area("Your Feedback:", value=st.session_state.fb_c, key="feedback_c_input", label_visibility="collapsed", height=120, placeholder="Share your experience...")
-    with col2:
-        st.write("**Rate this answer:**")
-        fb_r = st.radio("Rating:", [1, 2, 3, 4, 5], value=st.session_state.fb_r, key="feedback_r_input", label_visibility="collapsed", horizontal=False)
-    
-    col_submit, col_clear = st.columns([3, 1])
-    with col_submit:
-        if st.button("✅ Submit Feedback", type="primary", use_container_width=True):
+
+    with st.form("feedback_form", clear_on_submit=False):
+        fb_q = st.text_input(
+            "Question (optional):",
+            value=st.session_state.get("fb_q", ""),
+            placeholder="Which question are you rating?"
+        )
+
+        fb_c = st.text_area(
+            "Your Feedback:",
+            value=st.session_state.get("fb_c", ""),
+            height=120,
+            placeholder="Share your experience..."
+        )
+
+        fb_r = st.slider("Rating", 1, 5, int(st.session_state.get("fb_r", 3)))
+
+        submitted = st.form_submit_button("✅ Submit Feedback")
+
+        if submitted:
             if fb_c.strip():
                 add_feedback(fb_q, fb_r, fb_c)
-                st.success("✅ Thank you for your feedback!")
+
+                # Reset session values cleanly
                 st.session_state.fb_q = ""
                 st.session_state.fb_c = ""
                 st.session_state.fb_r = 3
+
+                st.success("✅ Thank you for your feedback!")
                 st.rerun()
             else:
-                st.error("❌ Please add your feedback before submitting")
-    
-    with col_clear:
-        if st.button("🔄 Clear", use_container_width=True):
-            st.session_state.fb_q = ""
-            st.session_state.fb_c = ""
-            st.session_state.fb_r = 3
-            st.rerun()
-    
+                st.error("❌ Please write feedback before submitting")
+
+    # ---------- Summary ----------
     if st.session_state.feedback_data:
         st.divider()
         st.markdown("### 📊 Feedback Summary")
-        rates = [f['rating'] for f in st.session_state.feedback_data if isinstance(f.get('rating'), int)]
+
+        rates = [f.get("rating", 0) for f in st.session_state.feedback_data if isinstance(f.get("rating"), int)]
+
         if rates:
             col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Average Rating", f"{np.mean(rates):.1f}/5.0")
-            with col2:
-                st.metric("Total Responses", len(rates))
-            with col3:
-                st.metric("Latest", rates[-1] if rates else "N/A")
+            col1.metric("Average Rating", f"{np.mean(rates):.1f}/5")
+            col2.metric("Total Responses", len(rates))
+            col3.metric("Latest Rating", rates[-1])
+
+        # Safe dataframe display
+        try:
+            df_fb = pd.DataFrame(st.session_state.feedback_data)
+            st.dataframe(df_fb, use_container_width=True)
+        except:
+            pass
+
 
 # ADMIN
 elif nav == "🔐 Admin":
