@@ -1,9 +1,7 @@
-streamlit>=1.28.0
-pandas>=2.0.0
-numpy>=1.24.0
-scikit-learn>=1.3.0
-sentence-transformers>=2.2.0
-transformers>=4.30.0
-torch>=2.0.0
-gtts>=2.3.0
-reportlab>=4.0.0
+streamlit
+pandas
+numpy
+scikit-learn
+sentence-transformers
+transformers
+torch
