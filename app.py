@@ -103,30 +103,61 @@ THRESHOLD = 0.50
 
 # --- Semantic search function ---
 def search(query):
+    """
+    Return (answer, confidence, related_list).
+    related_list is always a list (maybe empty) of dicts {'q':..., 'a':..., 's':score}
+    Fallback: keyword-match when embeddings/model unavailable.
+    """
+    # rate-limit housekeeping
     if st.session_state.rate_limit_count > 100:
         st.session_state.rate_limit_count = 0
-    if not model or embeddings.size == 0 or len(q) == 0:
-        return None, 0, []
+
+    # If model or embeddings missing, do a simple keyword fallback to populate related items
+    if model is None or (hasattr(embeddings, "size") and embeddings.size == 0) or len(q) == 0:
+        matches = []
+        qlow = query.lower().strip()
+        if not qlow:
+            return None, 0.0, []
+        # find questions that contain query tokens (simple, fast)
+        for i, qq in enumerate(q):
+            try:
+                if qlow in str(qq).lower():
+                    matches.append((i, 0.9))  # high pseudo-score for exact substring
+            except Exception:
+                continue
+        related = []
+        for tup in matches[:4][1:4]:
+            idx = tup[0]
+            related.append({'q': q[idx], 'a': a[idx], 's': float(tup[1])})
+        if matches:
+            top_idx = matches[0][0]
+            return a[top_idx], float(matches[0][1]), related
+        return None, 0.0, related
+
+    # Normal path (semantic)
     st.session_state.rate_limit_count += 1
     try:
-        query_vec = model.encode([query])
-        scores = cosine_similarity(query_vec, embeddings)[0]
-        top_idx = int(np.argmax(scores))
+        qvec = model.encode([query], show_progress_bar=False)
+        scores = cosine_similarity(qvec, embeddings)[0]
+        # sort descending
+        sorted_idx = np.argsort(scores)[::-1]
+        top_idx = int(sorted_idx[0])
         top_score = float(scores[top_idx])
-        if top_score < THRESHOLD:
-            return None, 0, []
+
+        # Build related as the next best candidates (3 items) regardless of threshold
         related = []
-        for idx in np.argsort(scores)[::-1]:
-            if int(idx) == top_idx:
-                continue
-            if len(related) >= 3:
-                break
-            s = float(scores[int(idx)])
-            if s >= (THRESHOLD - 0.05):
-                related.append({'q': q[int(idx)], 'a': a[int(idx)], 's': s})
+        for idx in sorted_idx[1:4]:
+            related.append({'q': q[int(idx)], 'a': a[int(idx)], 's': float(scores[int(idx)])})
+
+        # If top_score is below threshold we still return related suggestions but no main answer
+        if top_score < THRESHOLD:
+            return None, 0.0, related
+
         return a[top_idx], top_score, related
     except Exception:
-        return None, 0, []
+        # safe fallback: no results
+        return None, 0.0, []
+
 
 # --- Bookmark / feedback functions ---
 def add_bookmark(qn, ans):
@@ -202,21 +233,27 @@ if nav == "🏠 Home":
                 qval = query.strip()[:500]
                 with st.spinner("🔄 Searching knowledge base..."):
                     ans, conf, rel = search(qval)
+
                 # store last result for bookmark and related actions
                 st.session_state.last_query = qval
                 st.session_state.last_answer = ans
                 st.session_state.last_conf = conf
+                # ensure last_rel is always a list (possibly empty)
                 st.session_state.last_rel = rel or []
-                # history
+
+                # append to search history
                 st.session_state.search_history.append({'query': qval, 'confidence': conf, 'timestamp': datetime.now().isoformat()})
                 if len(st.session_state.search_history) > 200:
                     st.session_state.search_history.pop(0)
+
                 # clear input so placeholder returns
                 try:
                     st.session_state['ex_query'] = ""
                 except Exception:
                     pass
-                # re-render to show updated last_answer immediately
+
+                # re-render immediately so UI updates
+                # use rerun only when necessary to show cleared input and results in same run
                 st.experimental_rerun()
             else:
                 st.error("❌ Please enter a question first.")
@@ -240,9 +277,8 @@ if nav == "🏠 Home":
                 else:
                     st.info("No result to bookmark")
 
-            # Related questions shown as expanders (deduped)
+            # Related questions shown as expanders (deduped vs main answer)
             rels = st.session_state.get('last_rel', []) or []
-            # build set of answers we've already displayed to avoid duplicates
             displayed_answers = set()
             if la:
                 displayed_answers.add(str(la).strip())
@@ -250,12 +286,11 @@ if nav == "🏠 Home":
             if rels:
                 st.markdown("### 🔗 Related Questions")
                 for i, r in enumerate(rels, 1):
-                    # skip if this related answer is equal to main answer or already shown
                     ra = str(r.get('a', '')).strip()
                     if not ra or ra in displayed_answers:
+                        # skip duplicates of the main answer
                         continue
-                    # show question (expander) — inside expander show answer and Save button
-                    qtext = r.get('q', '')[:180]
+                    qtext = r.get('q', '')[:160]
                     score_pct = int(r.get('s', 0) * 100)
                     with st.expander(f"Q{i}: {qtext} — ({score_pct}%)"):
                         st.markdown(f"<div class='answer-box'>{html.escape(ra)}</div>", unsafe_allow_html=True)
@@ -266,7 +301,6 @@ if nav == "🏠 Home":
                                 st.success("✅ Saved!")
                             else:
                                 st.info("✓ Already bookmarked")
-                    # mark this answer as displayed so we don't show duplicates
                     displayed_answers.add(ra)
         else:
             st.info("Ask a question and click Get Answer to see results.")
