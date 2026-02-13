@@ -7,24 +7,10 @@ from datetime import datetime
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-from collections import Counter
-from io import BytesIO
+
 import html
 
-# Try to import gtts for text-to-speech
-try:
-    from gtts import gTTS
-    GTTS_AVAILABLE = True
-except:
-    GTTS_AVAILABLE = False
 
-# Try to import reportlab for PDF export
-try:
-    from reportlab.lib.pagesizes import letter
-    from reportlab.pdfgen import canvas
-    PDF_AVAILABLE = True
-except:
-    PDF_AVAILABLE = False
 
 # ============ PAGE CONFIG ============
 st.set_page_config(
@@ -36,8 +22,6 @@ st.set_page_config(
 
 # ============ SESSION STATE INITIALIZATION ============
 session_defaults = {
-    'theme': 'light',
-    'language': 'English',
     'search_history': [],
     'bookmarks': [],
     'feedback_data': [],
@@ -46,108 +30,18 @@ session_defaults = {
     'custom_qa_pairs': [],
     'rate_limit_count': 0,
     'faq_page': 0,
+    'feedback_query_input': '',
+    'feedback_comment_input': '',
+    'feedback_rating_input': 3,
 }
 
 for key, default_value in session_defaults.items():
     if key not in st.session_state:
         st.session_state[key] = default_value
 
-# ============ LANGUAGE CONFIGURATION ============
-LANGUAGES = {
-    'English': 'en',
-    'Hindi': 'hi',
-    'Spanish': 'es',
-}
-
-TRANSLATIONS = {
-    'en': {
-        'title': '🎓 UniAssist',
-        'subtitle': 'Academic & Internship Guidance Assistant - Enhanced Edition',
-        'ask_question': 'Ask your question',
-        'get_answer': 'Get Answer',
-        'answer': 'Answer',
-        'confidence': 'Confidence Score',
-        'related': 'Related Questions',
-        'search_history': 'Search History',
-        'bookmarks': 'Bookmarks',
-        'feedback': 'Provide Feedback',
-        'home': 'Home',
-        'browse': 'Browse FAQ',
-        'search': 'Advanced Search',
-        'analytics': 'Analytics Dashboard',
-        'admin': 'Admin Panel',
-    },
-    'hi': {
-        'title': '🎓 यूनिएसिस्ट',
-        'subtitle': 'शैक्षणिक और इंटर्नशिप मार्गदर्शन - उन्नत संस्करण',
-        'ask_question': 'अपना सवाल पूछें',
-        'get_answer': 'जवाब प्राप्त करें',
-        'answer': 'जवाब',
-        'confidence': 'आत्मविश्वास स्कोर',
-        'related': 'संबंधित सवाल',
-        'search_history': 'खोज इतिहास',
-        'bookmarks': 'बुकमार्क',
-        'feedback': 'प्रतिक्रिया दें',
-        'home': 'होम',
-        'browse': 'FAQ ब्राउज़ करें',
-        'search': 'उन्नत खोज',
-        'analytics': 'विश्लेषण डैशबोर्ड',
-        'admin': 'व्यवस्थापक पैनल',
-    },
-    'es': {
-        'title': '🎓 UniAssist',
-        'subtitle': 'Asistente de Orientación Académica - Edición Mejorada',
-        'ask_question': 'Haz tu pregunta',
-        'get_answer': 'Obtener Respuesta',
-        'answer': 'Respuesta',
-        'confidence': 'Puntuación de Confianza',
-        'related': 'Preguntas Relacionadas',
-        'search_history': 'Historial de Búsqueda',
-        'bookmarks': 'Marcadores',
-        'feedback': 'Proporcionar Retroalimentación',
-        'home': 'Inicio',
-        'browse': 'Explorar FAQ',
-        'search': 'Búsqueda Avanzada',
-        'analytics': 'Panel de Análisis',
-        'admin': 'Panel de Administrador',
-    }
-}
 
 # ============ CUSTOM CSS ============
-def get_theme_css(theme):
-    if theme == 'dark':
-        return """
-<style>
-body { background-color: #1a1a1a; color: #fff; }
-.main-title {
-    font-size: 40px;
-    font-weight: 700;
-    color: #4a9eff;
-    text-align: center;
-    margin-bottom: 10px;
-}
-.sub-title {
-    font-size: 16px;
-    color: #aaa;
-    text-align: center;
-    margin-bottom: 20px;
-}
-.answer-box {
-    background-color: #2d2d2d;
-    padding: 20px;
-    border-radius: 10px;
-    border-left: 6px solid #4a9eff;
-    color: #fff;
-    margin: 15px 0;
-}
-.confidence-high { color: #2ecc71; font-weight: bold; }
-.confidence-medium { color: #f39c12; font-weight: bold; }
-.confidence-low { color: #e74c3c; font-weight: bold; }
-.footer { font-size: 12px; color: #666; text-align: center; margin-top: 50px; }
-</style>
-"""
-    else:
-        return """
+st.markdown("""
 <style>
 body { background-color: #ffffff; color: #000; }
 .main-title {
@@ -176,9 +70,7 @@ body { background-color: #ffffff; color: #000; }
 .confidence-low { color: #e74c3c; font-weight: bold; }
 .footer { font-size: 12px; color: #555; text-align: center; margin-top: 50px; }
 </style>
-"""
-
-st.markdown(get_theme_css(st.session_state.theme), unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # ============ PERSISTENT DATA MANAGEMENT ============
 def load_persistent_data():
@@ -270,15 +162,6 @@ SAFE_FALLBACK_MESSAGE = (
 RATE_LIMIT = 100
 
 # ============ UTILITY FUNCTIONS ============
-
-def get_lang_code():
-    """Get language code from session state safely"""
-    raw_lang = st.session_state.get('language', 'English')
-    if raw_lang in LANGUAGES:
-        return LANGUAGES[raw_lang]
-    elif raw_lang in TRANSLATIONS:
-        return raw_lang
-    return 'en'
 
 def sanitize_input(text):
     """Sanitize user input"""
@@ -391,134 +274,19 @@ def add_feedback(query, rating, comment=""):
     except:
         pass
 
-def get_analytics():
-    """Generate analytics"""
-    try:
-        if not st.session_state.search_history:
-            return None
-        
-        queries = [h['query'] for h in st.session_state.search_history]
-        total_searches = len(queries)
-        confidences = [h['confidence'] for h in st.session_state.search_history if isinstance(h.get('confidence'), (int, float))]
-        avg_confidence = np.mean(confidences) if confidences else 0
-        
-        # Most searched words
-        all_words = ' '.join(queries).lower().split()
-        word_freq = Counter(all_words)
-        
-        # Filter common words
-        common_words = {'what', 'is', 'the', 'a', 'and', 'or', 'for', 'to', 'in', 'of', 'how', 'can', 'i', 'about'}
-        word_freq = {w: c for w, c in word_freq.items() if w not in common_words and len(w) > 2}
-        
-        # Feedback stats
-        feedback = st.session_state.feedback_data
-        ratings = [f['rating'] for f in feedback if isinstance(f.get('rating'), (int, float))]
-        avg_rating = np.mean(ratings) if ratings else 0
-        
-        return {
-            'total_searches': total_searches,
-            'avg_confidence': avg_confidence,
-            'top_words': Counter(word_freq).most_common(5),
-            'feedback_count': len(feedback),
-            'avg_rating': avg_rating
-        }
-    except Exception as e:
-        st.error(f"Error generating analytics: {e}")
-        return None
-
-def export_to_pdf(question, answer):
-    """Export answer to PDF"""
-    if not PDF_AVAILABLE:
-        return None
-    
-    try:
-        buffer = BytesIO()
-        p = canvas.Canvas(buffer, pagesize=letter)
-        
-        p.setFont("Helvetica-Bold", 16)
-        p.drawString(50, 750, "UniAssist - Answer Export")
-        
-        p.setFont("Helvetica", 10)
-        p.drawString(50, 720, f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        
-        p.setFont("Helvetica-Bold", 12)
-        p.drawString(50, 690, "Question:")
-        p.setFont("Helvetica", 10)
-        y = 670
-        for line in question.split('\n')[:10]:
-            if y < 100:
-                p.showPage()
-                y = 750
-            p.drawString(70, y, line[:80])
-            y -= 15
-        
-        y -= 10
-        p.setFont("Helvetica-Bold", 12)
-        p.drawString(50, y, "Answer:")
-        p.setFont("Helvetica", 10)
-        y -= 20
-        for line in answer.split('\n')[:20]:
-            if y < 100:
-                p.showPage()
-                y = 750
-            p.drawString(70, y, line[:80])
-            y -= 15
-        
-        p.setFont("Helvetica-Oblique", 8)
-        p.drawString(50, 30, "UniAssist © 2026 | Academic Guidance Assistant")
-        
-        p.save()
-        buffer.seek(0)
-        return buffer
-    except Exception as e:
-        st.error(f"PDF export error: {e}")
-        return None
-
-def text_to_speech(text, lang_code='en'):
-    """Convert text to speech"""
-    if not GTTS_AVAILABLE:
-        return None
-    
-    try:
-        tts = gTTS(text=text, lang=lang_code, slow=False)
-        audio = BytesIO()
-        tts.write_to_fp(audio)
-        audio.seek(0)
-        return audio
-    except Exception as e:
-        st.warning(f"Text-to-speech error: {e}")
-        return None
-
 # ============ SIDEBAR & NAVIGATION ============
 with st.sidebar:
-    st.title("⚙️ Settings & Navigation")
-    
-    # Theme & Language controls
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🌙" if st.session_state.theme == 'light' else "☀️", help="Toggle theme", use_container_width=True):
-            st.session_state.theme = 'dark' if st.session_state.theme == 'light' else 'light'
-            st.rerun()
-    
-    with col2:
-        lang = st.selectbox("🌐 Language", options=list(LANGUAGES.keys()), index=list(LANGUAGES.keys()).index(st.session_state.language) if st.session_state.language in LANGUAGES else 0)
-        if lang != st.session_state.language:
-            st.session_state.language = lang
-            st.rerun()
-    
-    st.divider()
+    st.title("📚 Navigation")
     
     # Navigation
     nav_choice = st.radio(
-        "Navigate to:",
+        "Go to:",
         options=[
             "🏠 Home",
             "📚 Browse FAQ",
             "🔍 Advanced Search",
-            "📊 Analytics",
             "⭐ Bookmarks",
             "📝 Feedback",
-            "⚡ Quick Tips",
             "🔐 Admin Panel"
         ],
         key="nav_menu"
@@ -529,23 +297,18 @@ with st.sidebar:
     # Info Section
     with st.expander("ℹ️ About UniAssist", expanded=False):
         st.markdown("""
-        **UniAssist Enhanced** is an AI-powered guidance assistant with:
+        **UniAssist** - Academic Guidance Assistant
         
         ✨ Semantic Q&A matching
-        📱 Multi-language support
-        🌙 Dark/Light mode
-        🔖 Bookmarks & History
-        📊 Analytics dashboard
-        💬 User feedback system
-        📄 PDF export
-        🔊 Text-to-speech
+        🎓 1075+ Q&A pairs
+        🔖 Bookmarks feature
+        💬 Feedback system
+        🔐 Admin panel
         """)
 
 # ============ MAIN HEADER ============
-lang_code = get_lang_code()
-trans = TRANSLATIONS.get(lang_code, TRANSLATIONS['en'])
-st.markdown(f"<div class='main-title'>{trans.get('title','UniAssist')}</div>", unsafe_allow_html=True)
-st.markdown(f"<div class='sub-title'>{trans.get('subtitle','Academic & Internship Guidance Assistant')}</div>", unsafe_allow_html=True)
+st.markdown("<div class='main-title'>🎓 UniAssist</div>", unsafe_allow_html=True)
+st.markdown("<div class='sub-title'>Academic & Internship Guidance Assistant - Enhanced Edition</div>", unsafe_allow_html=True)
 st.divider()
 
 # ============ PAGE ROUTING ============
@@ -607,22 +370,10 @@ if nav_choice == "🏠 Home":
                         st.info("Use Ctrl+C to copy")
                 
                 with action_col3:
-                    if GTTS_AVAILABLE and st.button("🔊 Speak", use_container_width=True, key="speak_home"):
-                        lang_code = get_lang_code()
-                        audio = text_to_speech(answer, lang_code)
-                        if audio:
-                            st.audio(audio, format="audio/mp3")
+                    pass
                 
                 with action_col4:
-                    if PDF_AVAILABLE and st.button("📄 PDF", use_container_width=True, key="pdf_home"):
-                        pdf = export_to_pdf(user_query, answer)
-                        if pdf:
-                            st.download_button(
-                                label="Download PDF",
-                                data=pdf,
-                                file_name="uniassist_answer.pdf",
-                                mime="application/pdf"
-                            )
+                    pass
                 
                 with action_col5:
                     if st.button("👍 Rate", use_container_width=True, key="rate_home"):
@@ -641,15 +392,10 @@ if nav_choice == "🏠 Home":
             st.warning("Please enter a question.")
     
     with col2:
-        st.markdown("### 📊 Quick Stats")
-        stats = get_analytics()
-        if stats:
-            st.metric("Total Searches", stats['total_searches'])
-            st.metric("Avg Confidence", f"{stats['avg_confidence']:.0%}")
-            st.metric("Bookmarks", len(st.session_state.bookmarks))
-            st.metric("Feedback", stats['feedback_count'])
-        else:
-            st.info("No data yet")
+        st.markdown("### 📊 Quick Info")
+        st.metric("Bookmarks", len(st.session_state.bookmarks))
+        st.metric("Feedback", len(st.session_state.feedback_data))
+        st.metric("Searches", len(st.session_state.search_history))
 
 # -------- BROWSE FAQ --------
 elif nav_choice == "📚 Browse FAQ":
@@ -787,41 +533,6 @@ elif nav_choice == "🔍 Advanced Search":
             except Exception as e:
                 st.error(f"Search error: {e}")
 
-# -------- ANALYTICS --------
-elif nav_choice == "📊 Analytics":
-    st.subheader("📊 Analytics Dashboard")
-    
-    analytics = get_analytics()
-    
-    if analytics:
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("Total Searches", analytics['total_searches'])
-        with col2:
-            st.metric("Avg Confidence", f"{analytics['avg_confidence']:.0%}")
-        with col3:
-            st.metric("Bookmarks", len(st.session_state.bookmarks))
-        with col4:
-            st.metric("Feedback Count", analytics['feedback_count'])
-        
-        st.divider()
-        
-        # Search history
-        if st.session_state.search_history:
-            st.markdown("### 📜 Recent Searches")
-            df_history = pd.DataFrame(st.session_state.search_history[-10:])
-            df_history['timestamp'] = pd.to_datetime(df_history['timestamp']).dt.strftime('%H:%M:%S')
-            st.dataframe(df_history[['timestamp', 'query', 'confidence']], use_container_width=True)
-        
-        # Top search terms
-        if analytics['top_words']:
-            st.markdown("### 🔤 Top Search Terms")
-            terms_data = {'Term': [w for w, _ in analytics['top_words']], 'Count': [c for _, c in analytics['top_words']]}
-            st.bar_chart(pd.DataFrame(terms_data).set_index('Term'))
-    else:
-        st.info("No analytics data yet")
-
 # -------- BOOKMARKS --------
 elif nav_choice == "⭐ Bookmarks":
     st.subheader("⭐ My Bookmarks")
@@ -849,19 +560,23 @@ elif nav_choice == "📝 Feedback":
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        feedback_query = st.text_input("Question you're rating (optional):", key="feedback_query")
-        feedback_comment = st.text_area("Your feedback or suggestion:", key="feedback_comment")
+        feedback_query = st.text_input("Question you're rating (optional):", key="feedback_query_input", label_visibility="collapsed")
+        feedback_comment = st.text_area("Your feedback or suggestion:", key="feedback_comment_input", label_visibility="collapsed", height=120)
     
     with col2:
-        feedback_rating = st.radio("Rate your experience:", [1, 2, 3, 4, 5], key="feedback_rating")
+        feedback_rating = st.radio("Rate:", [1, 2, 3, 4, 5], key="feedback_rating_input")
     
     if st.button("Submit Feedback", type="primary", use_container_width=True):
         if feedback_comment.strip():
             add_feedback(feedback_query, feedback_rating, feedback_comment)
-            st.success("Thank you for your feedback! 🙏")
+            st.success("✅ Thank you for your feedback!")
+            # Clear form fields
+            st.session_state.feedback_query_input = ""
+            st.session_state.feedback_comment_input = ""
+            st.session_state.feedback_rating_input = 3
             st.rerun()
         else:
-            st.warning("Please enter your feedback")
+            st.error("❌ Please enter your feedback")
     
     # Display feedback summary
     if st.session_state.feedback_data:
@@ -871,26 +586,6 @@ elif nav_choice == "📝 Feedback":
         if ratings:
             avg = np.mean(ratings)
             st.metric("Average Rating", f"{avg:.1f}/5.0", delta=f"{len(ratings)} responses")
-
-# -------- QUICK TIPS --------
-elif nav_choice == "⚡ Quick Tips":
-    st.subheader("⚡ Quick Tips & Tricks")
-    
-    tips = [
-        ("🎯 Specific Questions", "Ask specific questions for better results"),
-        ("🔑 Use Keywords", "Include relevant keywords from university policies"),
-        ("📂 Browse by Category", "Use FAQ browser to explore topics"),
-        ("⭐ Save Answers", "Bookmark important answers for quick access"),
-        ("📊 Check Analytics", "View your search trends and patterns"),
-        ("💬 Give Feedback", "Help us improve by rating answers"),
-        ("🔍 Similar Questions", "Use advanced search to find similar topics"),
-        ("🌙 Dark Mode", "Enable dark mode for comfortable reading"),
-    ]
-    
-    cols = st.columns(2)
-    for i, (title, desc) in enumerate(tips):
-        with cols[i % 2]:
-            st.info(f"{title}\n\n{desc}")
 
 # -------- ADMIN PANEL --------
 elif nav_choice == "🔐 Admin Panel":
