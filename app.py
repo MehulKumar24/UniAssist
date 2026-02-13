@@ -187,7 +187,7 @@ if nav == "🏠 Home":
     with col1:
         st.subheader("🤔 Ask Your Question")
 
-        # text input with new friendly placeholder
+        # friendly placeholder; user types here
         query = st.text_input(
             "Enter your question:",
             placeholder="Type your question...",
@@ -195,27 +195,33 @@ if nav == "🏠 Home":
             label_visibility="collapsed"
         )
 
-        # Get Answer: run search, store last_* fields, append history, then CLEAR input
+        # Get Answer triggers a search, stores the single main answer and related list,
+        # clears the input so placeholder returns.
         if st.button("🔍 Get Answer", use_container_width=True, type="primary"):
             if query.strip():
-                query_val = query.strip()[:500]
+                qval = query.strip()[:500]
                 with st.spinner("🔄 Searching knowledge base..."):
-                    ans, conf, rel = search(query_val)
-                # save last result so bookmark + related work consistently
-                st.session_state.last_query = query_val
+                    ans, conf, rel = search(qval)
+                # store last result for bookmark and related actions
+                st.session_state.last_query = qval
                 st.session_state.last_answer = ans
                 st.session_state.last_conf = conf
                 st.session_state.last_rel = rel or []
-                # append to search history
-                st.session_state.search_history.append({'query': query_val, 'confidence': conf, 'timestamp': datetime.now().isoformat()})
+                # history
+                st.session_state.search_history.append({'query': qval, 'confidence': conf, 'timestamp': datetime.now().isoformat()})
                 if len(st.session_state.search_history) > 200:
                     st.session_state.search_history.pop(0)
-                # CLEAR the input so placeholder returns
-                st.session_state['ex_query'] = ""
+                # clear input so placeholder returns
+                try:
+                    st.session_state['ex_query'] = ""
+                except Exception:
+                    pass
+                # re-render to show updated last_answer immediately
+                st.experimental_rerun()
             else:
                 st.error("❌ Please enter a question first.")
 
-        # Display main answer (if any)
+        # Show the single main answer (if available)
         if st.session_state.get('last_answer'):
             la = st.session_state.last_answer
             lc = st.session_state.last_conf
@@ -224,7 +230,7 @@ if nav == "🏠 Home":
             text = "🟢 High" if lc >= 0.7 else "🟡 Medium" if lc >= 0.5 else "🔴 Low"
             st.markdown(f"<p style='text-align: center;'><span class='{color}'>{text} Confidence: {lc:.0%}</span></p>", unsafe_allow_html=True)
 
-            # Bookmark button (home)
+            # Bookmark the main shown answer
             if st.button("⭐ Bookmark", key="bm_home"):
                 if st.session_state.last_query and st.session_state.last_answer:
                     if add_bookmark(st.session_state.last_query, st.session_state.last_answer):
@@ -234,21 +240,34 @@ if nav == "🏠 Home":
                 else:
                     st.info("No result to bookmark")
 
-            # Show related answers (each as its own answer-box + save button)
-            rels = st.session_state.get('last_rel', [])
+            # Related questions shown as expanders (deduped)
+            rels = st.session_state.get('last_rel', []) or []
+            # build set of answers we've already displayed to avoid duplicates
+            displayed_answers = set()
+            if la:
+                displayed_answers.add(str(la).strip())
+
             if rels:
-                st.markdown("### 🔗 Related Answers")
+                st.markdown("### 🔗 Related Questions")
                 for i, r in enumerate(rels, 1):
-                    # answer box for the related answer
-                    st.markdown(f"<div class='answer-box'>{html.escape(r.get('a',''))}</div>", unsafe_allow_html=True)
-                    st.caption(f"Matched Q: {r.get('q','')[:140]} — Score: {int(r.get('s',0)*100)}%")
-                    # save this related answer (uses same bookmark function)
-                    key_name = f"save_rel_{i}_{abs(hash(r.get('q','')))%100000}"
-                    if st.button(f"⭐ Save Q{i}", key=key_name):
-                        if add_bookmark(r.get('q',''), r.get('a','')):
-                            st.success("✅ Saved!")
-                        else:
-                            st.info("✓ Already bookmarked")
+                    # skip if this related answer is equal to main answer or already shown
+                    ra = str(r.get('a', '')).strip()
+                    if not ra or ra in displayed_answers:
+                        continue
+                    # show question (expander) — inside expander show answer and Save button
+                    qtext = r.get('q', '')[:180]
+                    score_pct = int(r.get('s', 0) * 100)
+                    with st.expander(f"Q{i}: {qtext} — ({score_pct}%)"):
+                        st.markdown(f"<div class='answer-box'>{html.escape(ra)}</div>", unsafe_allow_html=True)
+                        st.caption(f"Matched question: {qtext}")
+                        key_name = f"save_rel_{i}_{abs(hash(qtext))%100000}"
+                        if st.button(f"⭐ Save Q{i}", key=key_name):
+                            if add_bookmark(r.get('q', ''), ra):
+                                st.success("✅ Saved!")
+                            else:
+                                st.info("✓ Already bookmarked")
+                    # mark this answer as displayed so we don't show duplicates
+                    displayed_answers.add(ra)
         else:
             st.info("Ask a question and click Get Answer to see results.")
 
