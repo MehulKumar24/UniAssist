@@ -41,33 +41,29 @@ Access at: **http://localhost:8501**
 
 ### 🏠 Home Page
 - Semantic Q&A search with confidence scores
-- Related questions displayed
-- Real-time bookmark & review
+- Related questions with save support
+- Live stats (searches, bookmarks, ratings, avg confidence)
+- One-click bookmarking
 
 ### 📚 Browse FAQ
 - Category-based filtering
 - Paginated browsing (5/10/20/50 per page)
-- One-click bookmarking
-
-### 🔍 Advanced Search
-- **By Keywords** – Multi-word matching
-- **By Category** – Browse specific topics
-- **By Similarity** – Find related questions
+- Quick bookmark from any question
 
 ### ⭐ Bookmarks
 - Save important Q&A pairs
-- Persistent storage
-- One-click removal
+- Persistent storage (JSON)
+- Delete saved items
 
 ### 📝 Feedback
 - Rate answers (1-5 stars)
-- Leave comments
-- View feedback summary
+- Add comments & feedback
+- View average rating summary
 
 ### 🔐 Admin Panel
 - Add/manage custom Q&A pairs
-- View all feedback
-- Export data (JSON/CSV)
+- View detailed feedback analytics
+- Export data (JSON/CSV formats)
 - Password-protected access
 
 ---
