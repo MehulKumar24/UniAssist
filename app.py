@@ -548,3 +548,4 @@ elif nav == "🔐 Admin":
 # ---------------- Footer ----------------
 st.divider()
 st.markdown("<div class='footer'>© 2026 UniAssist | AI-Powered Academic Guidance Assistant</div>", unsafe_allow_html=True)
+               
