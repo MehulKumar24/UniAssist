@@ -1,272 +1,164 @@
-# 🎓 UniAssist
+🎓 UniAssist
+Academic & Internship Guidance Assistant
+UniAssist is a controlled, retrieval-based academic assistance system designed to answer university-related and internship-related queries accurately and safely.
+The project emphasizes correctness, scope control, and explainability, avoiding the common pitfalls of unrestricted generative chatbots.
 
-**Academic Guidance Assistant** – A fast, lightweight, retrieval-based Q&A system for university and internship queries.
+📍 Problem Statement
+Students frequently face difficulty in accessing clear, consistent, and reliable information regarding:
+Attendance policies
+Internship eligibility and rules
+Academic procedures
+Examination and grading systems
+Generic AI chatbots often:
+Hallucinate answers
+Provide out-of-scope information
+Lack accountability in academic contexts
+UniAssist addresses these challenges by grounding responses in a curated dataset and enforcing strict scope control.
 
----
+🎯 Project Objectives
+Build a safe academic assistant that answers only verified queries
+Demonstrate understanding of semantic retrieval techniques
+Avoid hallucinations using similarity thresholds and fallback logic
+Deploy a real, usable web application
+Maintain academic integrity and originality
 
-## 📍 Overview
-
-UniAssist is a controlled retrieval system designed to provide reliable answers to academic questions without hallucinations. It uses semantic similarity matching to find the most relevant answer from a curated dataset of 1075+ Q&A pairs.
-
-**Key Focus:**
-- ✨ Fast semantic search
-- 📖 Retrieval-based (no generation)
-- 🎯 Scope-controlled (academic only)
-- 🐎 Lightweight & efficient (~384 lines)
-- 📦 Zero bloat – only essential features
-
----
-
-## 🚀 Quick Start
-
-### Installation
-
-```bash
-# Clone repository
-git clone https://github.com/MehulKumar24/UniAssist.git
-cd UniAssist
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run app
-streamlit run app.py
-```
-
-Access at: **http://localhost:8501**
-
----
-
-## 🎯 Features
-
-### 🏠 Home Page
-- Semantic Q&A search with confidence scores
-- Related questions with save support
-- Live stats (searches, bookmarks, ratings, avg confidence)
-- One-click bookmarking
-
-### 📚 Browse FAQ
-- Category-based filtering
-- Paginated browsing (5/10/20/50 per page)
-- Quick bookmark from any question
-
-### ⭐ Bookmarks
-- Save important Q&A pairs
-- Persistent storage (JSON)
-- Delete saved items
-
-### 📝 Feedback
-- Rate answers (1-5 stars)
-- Add comments & feedback
-- View average rating summary
-
-### 🔐 Admin Panel
-- Add/manage custom Q&A pairs
-- View detailed feedback analytics
-- Export data (JSON/CSV formats)
-- Password-protected access
-
----
-
-## 🏗️ Architecture
-
-```
+🧠 System Architecture Overview
+UniAssist follows a retrieval-first architecture, not a free-form generative model.
+High-level flow:
 User Query
-   ↓
-Sentence-Embedding (all-MiniLM-L6-v2)
-   ↓
-Cosine Similarity Search
-   ↓
-Threshold Check (0.50)
-   ↓
-Return Answer OR Fallback
-```
+↓
+Sentence Embedding
+↓
+Similarity Matching (Cosine Similarity)
+↓
+Safety Threshold Check
+↓
+Retrieved Answer OR Safe Fallback
+This design ensures:
+Predictable behavior
+Transparent logic
+Reduced risk of incorrect answers
 
-**Why This Design?**
-- Predictable, explainable behavior
-- No hallucinations
-- Fast inference
-- Low computational cost
-
----
-
-## 📊 Performance
-
-| Metric | Value |
-|--------|-------|
-| Code Size | 384 lines |
-| Q&A Pairs | 1075+ |
-| Search Latency | <1s |
-| Memory | ~200MB |
-| Categories | 24 |
-
----
-
-## 🛠️ Tech Stack
-
-- **Python 3.8+**
-- **Streamlit** – Web framework
-- **Sentence-Transformers** – Semantic embeddings (all-MiniLM-L6-v2)
-- **Scikit-learn** – Cosine similarity
-- **Pandas/NumPy** – Data handling
-- **JSON** – Persistent storage
-
----
-
-## 📦 Removed Features
-
-Streamlined for performance:
-- ❌ Dark/Light theme toggle
-- ❌ Analytics dashboard
-- ❌ Text-to-speech
-- ❌ PDF export
-- ❌ Multi-language support
-- ❌ Quick tips page
-
-**Result:** 47% code reduction (721 → 384 lines)
-
----
-
-## 📁 Project Structure
-
-```
+🗂️ Project Structure
 UniAssist/
-├── app.py                          # Main application (384 lines)
-├── UniAssist_training_data.csv     # Q&A dataset (1075 pairs)
-├── requirements.txt                # Dependencies
-├── LICENSE                         # Apache 2.0
-├── README.md                       # This file
 │
-├── 01_data_exploration.ipynb       # Data analysis
-├── 02_retrieval_system.ipynb       # Semantic search
-├── 03_safety_and_scope_control.ipynb # Scope control
-└── 04_paraphrasing.ipynb           # ML training reference
-```
+├── Notebook_01_Data_Preparation.ipynb
+├── Notebook_02_Retrieval_System.ipynb
+├── Notebook_03_Safety_and_Scope.ipynb
+├── Notebook_04_Seq2Seq_Paraphrasing.ipynb
+│
+├── UniAssist_training_data.csv
+├── app.py
+├── requirements.txt
+└── README.md
 
----
+📘 Development Notebooks (Explanation)
+🔹 Notebook 01 – Dataset Creation & Validation
+Manual creation of question–answer pairs
+Categorization of academic and internship queries
+Dataset consistency and formatting checks
+Outcome:
+A custom dataset (UniAssist_training_data.csv) used directly by the app.
 
-## 💾 Data Persistence
+🔹 Notebook 02 – Semantic Retrieval System
+Sentence embeddings using SentenceTransformer
+Similarity computation using cosine similarity
+Evaluation of retrieval quality
+Outcome:
+Reliable semantic matching between user queries and stored questions.
 
-- **uniassist_data.json** – Stores:
-  - Bookmarks
-  - Feedback entries
-  - Custom Q&A pairs
+🔹 Notebook 03 – Safety & Scope Control
+Definition of in-scope vs out-of-scope queries
+Similarity threshold tuning
+Polite fallback responses for unsupported questions
+Outcome:
+Prevention of hallucinated or unrelated answers.
 
-Auto-saved on every action.
+🔹 Notebook 04 – Seq2Seq / Paraphrasing Model
+Training a Seq2Seq model to demonstrate ML training workflow
+Exploration of response paraphrasing
+Note:
+The deployed system prioritizes retrieval-based reliability.
+The Seq2Seq model is included as learning and enhancement evidence, not as the primary answer generator.
 
----
+🧩 Core Technologies Used
+Python
+Streamlit – Web application framework
+Sentence-Transformers – Semantic embeddings
+Scikit-learn – Similarity computation
+Pandas / NumPy – Data handling
+PyTorch – Model backend
 
-## 🔐 Security
+🌐 Web Application (Deployment)
+Deployed using Streamlit Cloud
+Accessible via browser on:
+Desktop
+Tablet
+Mobile devices
+Supports “Add to Home Screen” for app-like usage on phones
 
-- **Admin Password:** `admin123` (change in code)
-- **Rate Limiting:** 100 queries per session
-- **No External API Calls**
-- **Local Storage Only**
+📱 Mobile Usage
+UniAssist does not require native installation.
+Steps:
+Open the deployed app URL in a mobile browser
+Use “Add to Home Screen”
+Launch like a normal app
 
----
+⚠️ Scope & Limitations
+Responds only to academic and internship-related queries
+Does not replace official university notifications
+Answers are limited to the provided dataset
+Internet connection required
+These limitations are intentional to ensure safety and correctness.
 
-## ⚙️ Configuration
+📜 Copyright, License & Usage Policy
+© 2026 Mehul Kumar. All rights reserved.
+The source code of this project is licensed under the Apache License, Version 2.0.
+Use, modification, and distribution of the code are permitted under the terms of the license, provided that proper attribution to the original author is maintained.
+The software is provided “AS IS”, without warranties or conditions of any kind.
 
-Edit `app.py` to customize:
+Dataset Ownership & Restrictions
+The dataset used in this project (UniAssist_training_data.csv) is custom-created, manually curated, and authored by the project owner specifically for academic and demonstrative purposes.
+The dataset is not autogenerated, scraped, or externally sourced
+Unauthorized reuse, redistribution, or repackaging of the dataset—either in full or in part—without attribution is strongly discouraged
+Any academic or derivative use must explicitly credit the original author
 
-```python
-THRESHOLD = 0.50              # Similarity threshold
-RATE_LIMIT = 100             # Queries per session
-'admin_password': "admin123" # Admin password
-```
+Academic Integrity Statement
+This project was developed as part of academic learning and evaluation.
+The system design, dataset structure, logic flow, and implementation choices reflect the author’s independent understanding, experimentation, and decision-making.
+Any reuse of this work should:
+Maintain academic honesty
+Avoid misrepresentation of authorship
+Respect institutional and ethical guidelines
 
----
+Commercial & Derivative Use Notice
+While the Apache License 2.0 permits commercial use of the codebase, any commercial or large-scale deployment of this system should:
+Clearly disclose system limitations
+Ensure responsible and ethical usage
+Respect dataset ownership and attribution
+The author assumes no liability for misuse or misinterpretation of outputs.
 
-## 🌐 Deployment
+Final Note
+This project is shared publicly for learning, transparency, and evaluation, not for uncredited replication.
+Responsible use and proper attribution are expected and appreciated.
 
-### Streamlit Cloud
-```bash
-streamlit run app.py --server.port 8501
-```
+🚀 Future Scope & Enhancements
+Potential future improvements include:
+Multi-university support
+Role-based access (student / faculty)
+Feedback-based response refinement
+Hybrid retrieval + generation architecture
+API-based backend for commercial deployment
 
-### Docker
-```dockerfile
-FROM python:3.9-slim
-WORKDIR /app
-COPY . .
-RUN pip install -r requirements.txt
-CMD ["streamlit", "run", "app.py"]
-```
+👤 Author
+Mehul Kumar
+B.Tech (1st Year)
+South Asian University, New Delhi
+IIT Madras, Chennai
 
----
-
-## 📚 Dataset
-
-**UniAssist_training_data.csv**
-- 1075 Q&A pairs
-- 24 academic categories
-- Manual curation
-- Verified answers
-
-⚠️ **Dataset Use Policy:**
-- Custom-created and manually curated
-- Attribution required for use
-- Unauthorized redistribution discouraged
-
----
-
-## 🐛 Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| "No answer found" | Update `THRESHOLD` (default 0.50) |
-| Slow search | Restart Streamlit session |
-| Missing data | Check `uniassist_data.json` exists |
-| Admin won't login | Verify password in code |
-
----
-
-## 📈 Development Notebooks
-
-1. **01_data_exploration.ipynb** – Dataset creation & validation
-2. **02_retrieval_system.ipynb** – Semantic matching evaluation
-3. **03_safety_and_scope_control.ipynb** – Threshold tuning & fallbacks
-4. **04_paraphrasing.ipynb** – ML reference (not used in production)
-
----
-
-## 📜 License
-
-- **Code:** Apache License 2.0
-- **Dataset:** Custom-curated (attribution required)
-
----
-
-## 👤 Author
-
-**Mehul Kumar**  
-B.Tech (1st Year) | South Asian University, New Delhi
-
----
-
-## 📝 Citation
-
-If using UniAssist dataset or code:
-
-```
-@software{uniassist2026,
-  title = {UniAssist: Academic Guidance Assistant},
-  author = {Kumar, Mehul},
-  year = {2026},
-  url = {https://github.com/MehulKumar24/UniAssist}
-}
-```
-
----
-
-## ✅ Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0 | Feb 2026 | Initial release |
-| 1.1 | Feb 2026 | Streamlined to 384 lines |
-| 1.2 | Feb 2026 | Removed non-essential features |
-
----
-
-**Status:** Active Development | Last Updated: February 13, 2026
+✅ Final Remarks
+UniAssist was built with an emphasis on:
+Understanding over automation
+Safety over speculation
+Structure over improvisation
+The project demonstrates not only technical implementation but also responsible system design, making it suitable for both academic evaluation and future real-world extension. So copying of dataset is not recommended, codes may be copied as it is fundamental program and not unique. If dataset is copied without consent then legal action may apply as requirement.
