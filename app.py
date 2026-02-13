@@ -224,9 +224,6 @@ with st.sidebar:
         © 2026 UniAssist
         """)
 
-# expose nav to session_state so other buttons can switch to feedback
-st.session_state['nav_menu'] = nav
-
 # ---------------- Header ----------------
 st.markdown("<div class='main-title'>🎓 UniAssist</div>", unsafe_allow_html=True)
 st.markdown("<div class='sub-title'>AI-Powered Academic Guidance Assistant</div>", unsafe_allow_html=True)
@@ -268,9 +265,10 @@ if nav == "🏠 Home":
                     with c3:
                         if st.button("🗳️ Rate", key=f"rate_home_{unique}"):
                             # switch to feedback tab and prefill
-                            st.session_state['nav_menu'] = "📝 Feedback"
+                            st.session_state.nav_menu = "📝 Feedback"
                             st.session_state.fb_q = q_in
-                            st.experimental_rerun()
+                            st.rerun()
+
                     # Related
                     if rel:
                         st.markdown("### 🔗 Related Questions")
