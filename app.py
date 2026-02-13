@@ -187,26 +187,35 @@ if nav == "🏠 Home":
     with col1:
         st.subheader("🤔 Ask Your Question")
 
-        # simple text_input + Get Answer button (like your original)
-        query = st.text_input("Enter your question:", placeholder="What is the minimum attendance requirement?", key="ex_query", label_visibility="collapsed")
+        # text input with new friendly placeholder
+        query = st.text_input(
+            "Enter your question:",
+            placeholder="Type your question...",
+            key="ex_query",
+            label_visibility="collapsed"
+        )
+
+        # Get Answer: run search, store last_* fields, append history, then CLEAR input
         if st.button("🔍 Get Answer", use_container_width=True, type="primary"):
             if query.strip():
                 query_val = query.strip()[:500]
                 with st.spinner("🔄 Searching knowledge base..."):
                     ans, conf, rel = search(query_val)
-                # store last shown answer so bookmark & related work
+                # save last result so bookmark + related work consistently
                 st.session_state.last_query = query_val
                 st.session_state.last_answer = ans
                 st.session_state.last_conf = conf
-                st.session_state.last_rel = rel
+                st.session_state.last_rel = rel or []
                 # append to search history
                 st.session_state.search_history.append({'query': query_val, 'confidence': conf, 'timestamp': datetime.now().isoformat()})
                 if len(st.session_state.search_history) > 200:
                     st.session_state.search_history.pop(0)
+                # CLEAR the input so placeholder returns
+                st.session_state['ex_query'] = ""
             else:
                 st.error("❌ Please enter a question first.")
 
-        # display last answer if exists
+        # Display main answer (if any)
         if st.session_state.get('last_answer'):
             la = st.session_state.last_answer
             lc = st.session_state.last_conf
@@ -224,25 +233,26 @@ if nav == "🏠 Home":
                         st.info("✓ Already bookmarked")
                 else:
                     st.info("No result to bookmark")
-        else:
-            st.info("Ask a question and click Get Answer to see results.")
 
-        # Related questions (if any)
-        rel = st.session_state.get('last_rel', [])
-        if rel:
-            st.markdown("### 🔗 Related Questions")
-            for i, r in enumerate(rel, 1):
-                with st.expander(f"Q{i}: {r['q'][:60]}... ({int(r['s']*100)}%)"):
-                    st.write(r['a'])
-                    # Save related question button
-                    key_name = f"save_rel_{i}_{abs(hash(r['q']))%100000}"
+            # Show related answers (each as its own answer-box + save button)
+            rels = st.session_state.get('last_rel', [])
+            if rels:
+                st.markdown("### 🔗 Related Answers")
+                for i, r in enumerate(rels, 1):
+                    # answer box for the related answer
+                    st.markdown(f"<div class='answer-box'>{html.escape(r.get('a',''))}</div>", unsafe_allow_html=True)
+                    st.caption(f"Matched Q: {r.get('q','')[:140]} — Score: {int(r.get('s',0)*100)}%")
+                    # save this related answer (uses same bookmark function)
+                    key_name = f"save_rel_{i}_{abs(hash(r.get('q','')))%100000}"
                     if st.button(f"⭐ Save Q{i}", key=key_name):
-                        if add_bookmark(r['q'], r['a']):
+                        if add_bookmark(r.get('q',''), r.get('a','')):
                             st.success("✅ Saved!")
                         else:
                             st.info("✓ Already bookmarked")
+        else:
+            st.info("Ask a question and click Get Answer to see results.")
 
-    # Activity panel
+    # Activity panel (unchanged)
     with col2:
         st.markdown("### 📊 Your Activity")
         with st.container():
