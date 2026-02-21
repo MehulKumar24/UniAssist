@@ -1,295 +1,805 @@
 from __future__ import annotations
-import hashlib,re,time
-from datetime import date,datetime
+
+import re
+import time
+import hashlib
+from datetime import date, datetime
 from pathlib import Path
-import numpy as np,pandas as pd,streamlit as st
+
+import numpy as np
+import pandas as pd
+import streamlit as st
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-st.set_page_config(page_title='UniAssist Pro',page_icon='🎓',layout='wide')
-DATA_DIR=Path('data');FEEDBACK_FILE=DATA_DIR/'feedback.csv';QUERY_LOG_FILE=DATA_DIR/'query_logs.csv';ALERT_FILE=DATA_DIR/'alerts.csv'
-SIM_DEFAULT=0.65
-LANGS=['English','Hindi','Spanish','French']
-TENANTS={'Default University':{'owner':'Academic Office'},'North Campus Institute':{'owner':'Dean Academics'},'West Tech University':{'owner':'Registrar'}}
-USERS={'student_demo':{'password':'student123','role':'student'},'faculty_demo':{'password':'faculty123','role':'faculty'},'admin_demo':{'password':'admin123','role':'admin'}}
-SCOPE={'attendance','exam','internship','policy','grades','cgpa','credit','syllabus','academic','placement','scholarship','leave','deadline'}
-BLOCK={'hack','bypass exam','fake certificate','violence','self-harm'}
-STEPS={'attendance':['Check ERP attendance','Raise regularization','Meet advisor'],'internship':['Validate eligibility','Prepare documents','Submit on portal'],'exam':['Verify schedule','Check revaluation policy','Contact exam cell'],'general':['Read official notice','Follow department process','Escalate if unresolved']}
 
-def ensure_storage():
-    DATA_DIR.mkdir(parents=True,exist_ok=True)
-    if not FEEDBACK_FILE.exists(): pd.DataFrame(columns=['timestamp','user','role','university','query','response','confidence','feedback','comment']).to_csv(FEEDBACK_FILE,index=False)
-    if not QUERY_LOG_FILE.exists(): pd.DataFrame(columns=['timestamp','user','role','university','department','semester','query','category','confidence','scope_pass','latency_ms','escalated']).to_csv(QUERY_LOG_FILE,index=False)
-    if not ALERT_FILE.exists(): pd.DataFrame(columns=['timestamp','user','alert_type','details']).to_csv(ALERT_FILE,index=False)
+st.set_page_config(page_title="UniAssist India", page_icon="🎓", layout="wide")
 
-def tok(t:str)->set[str]: return set(re.findall(r'[a-zA-Z0-9]+',t.lower()))
-def cat(t:str)->str:
-    t=t.lower()
-    if any(k in t for k in ['attendance','absent','leave']): return 'attendance'
-    if any(k in t for k in ['internship','placement','offer']): return 'internship'
-    if any(k in t for k in ['exam','revaluation','grade','cgpa']): return 'exam'
-    return 'general'
-def tr(txt:str,lang:str)->str: return txt if lang=='English' else f'[{lang} beta translation] {txt}'
-def append_row(p:Path,row:dict): pd.DataFrame([row]).to_csv(p,mode='a',header=False,index=False)
-def trust(conf:float,fresh_days:int,cites:int)->float: return round((max(0,min(1,conf))*0.6+max(0,1-min(fresh_days,365)/365)*0.25+min(cites/3,1)*0.15)*100,1)
-def guard(q:str)->tuple[bool,str]:
-    l=q.lower()
-    if any(x in l for x in BLOCK): return False,'Query blocked by safety moderation policy.'
-    if len(tok(q)&SCOPE)==0: return False,'Out-of-scope: academic/internship only.'
-    return True,'ok'
-def ready(res:int,mock:int,proj:int)->int: return max(0,min(int(res*0.5+min(mock,10)*4+min(proj,5)*8),100))
-def attn_proj(cur:float,done:int,fut:int,att_fut:int)->float:
-    tot=done+fut
-    return cur if tot<=0 else round((((cur/100)*done)+att_fut)/tot*100,2)
-def cgpa_proj(cur:float,cred:int,newc:int,gp:float)->float:
-    tot=cred+newc
-    return cur if tot<=0 else round((cur*cred+gp*newc)/tot,2)
+DATA_DIR = Path("data")
+FEEDBACK_FILE = DATA_DIR / "feedback.csv"
+QUERY_LOG_FILE = DATA_DIR / "query_logs.csv"
+ALERTS_FILE = DATA_DIR / "alerts.csv"
+TICKETS_FILE = DATA_DIR / "tickets.csv"
+
+SIMILARITY_DEFAULT = 0.65
+UNIVERSITIES = ["University 1", "University 2", "University 3"]
+LANGUAGES = ["English", "Hindi", "Tamil", "Bengali"]
+
+USERS = {
+    "student_demo": {"password": "student123", "role": "student"},
+    "organisation_demo": {"password": "org123", "role": "organisation"},
+    "parents_demo": {"password": "parents123", "role": "parents"},
+    "admin_demo": {"password": "admin123", "role": "developer_admin"},
+}
+
+SCOPE_KEYWORDS = {
+    "attendance",
+    "exam",
+    "internship",
+    "policy",
+    "grades",
+    "cgpa",
+    "credit",
+    "placement",
+    "scholarship",
+    "leave",
+    "semester",
+    "academic",
+}
+
+SAFE_FALLBACK = (
+    "I do not have reliable evidence for this query in the current academic dataset. "
+    "Please refer to official university notices or ask admin to add this policy source."
+)
+
+CATEGORY_STEPS = {
+    "attendance": ["Check attendance ledger", "Submit regularization request", "Meet class advisor"],
+    "internship": ["Verify eligibility", "Prepare documents", "Apply before deadline"],
+    "exam": ["Confirm exam schedule", "Check appeal/revaluation rules", "Contact exam cell"],
+    "general": ["Read official circular", "Follow department process", "Escalate to admin office"],
+}
+
+st.markdown(
+    """
+<style>
+:root {
+  --brand-1: #ff8f1f;
+  --brand-2: #0f8a5f;
+  --brand-3: #1f4ed8;
+  --card: #ffffff;
+}
+.main-banner {
+  border-radius: 16px;
+  padding: 18px 20px;
+  background: linear-gradient(120deg, rgba(255,143,31,0.15), rgba(15,138,95,0.15));
+  border: 1px solid rgba(31,78,216,0.2);
+  margin-bottom: 14px;
+}
+.main-title { font-size: 34px; font-weight: 800; color: var(--brand-3); }
+.main-sub { color: #334155; font-size: 15px; }
+.answer-card {
+  background: var(--card);
+  border-left: 6px solid var(--brand-3);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+}
+.metric-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+
+def ensure_storage() -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    if not FEEDBACK_FILE.exists():
+        pd.DataFrame(
+            columns=["timestamp", "user", "role", "university", "query", "response", "confidence", "feedback", "comment"]
+        ).to_csv(FEEDBACK_FILE, index=False)
+    if not QUERY_LOG_FILE.exists():
+        pd.DataFrame(
+            columns=[
+                "timestamp",
+                "user",
+                "role",
+                "university",
+                "department",
+                "semester",
+                "query",
+                "category",
+                "confidence",
+                "latency_ms",
+                "escalated",
+            ]
+        ).to_csv(QUERY_LOG_FILE, index=False)
+    if not ALERTS_FILE.exists():
+        pd.DataFrame(columns=["timestamp", "user", "alert_type", "details"]).to_csv(ALERTS_FILE, index=False)
+    if not TICKETS_FILE.exists():
+        pd.DataFrame(columns=["timestamp", "user", "role", "query", "priority", "status"]).to_csv(TICKETS_FILE, index=False)
+
+
+def append_row(path: Path, row: dict) -> None:
+    pd.DataFrame([row]).to_csv(path, mode="a", header=False, index=False)
+
+
+def compute_trust_score(confidence: float, citations_count: int, freshness_days: int) -> float:
+    conf = max(0.0, min(1.0, confidence)) * 0.65
+    cite = min(citations_count / 3, 1.0) * 0.2
+    fresh = max(0.0, 1 - min(freshness_days, 365) / 365) * 0.15
+    return round((conf + cite + fresh) * 100, 1)
+
+
+def projected_attendance(current_pct: float, classes_done: int, future_classes: int, attend_future: int) -> float:
+    total_classes = classes_done + future_classes
+    if total_classes <= 0:
+        return current_pct
+    attended_now = (current_pct / 100.0) * classes_done
+    return round(((attended_now + attend_future) / total_classes) * 100, 2)
+
+
+def projected_cgpa(current_cgpa: float, credits_done: int, future_credits: int, expected_gp: float) -> float:
+    total_credits = credits_done + future_credits
+    if total_credits <= 0:
+        return current_cgpa
+    total_points = (current_cgpa * credits_done) + (expected_gp * future_credits)
+    return round(total_points / total_credits, 2)
+
+
+def tokenize(text: str) -> set[str]:
+    return set(re.findall(r"[a-zA-Z0-9]+", text.lower()))
+
+
+def infer_category(text: str) -> str:
+    t = text.lower()
+    if any(k in t for k in ["attendance", "leave", "absent"]):
+        return "attendance"
+    if any(k in t for k in ["internship", "placement", "offer"]):
+        return "internship"
+    if any(k in t for k in ["exam", "grade", "revaluation", "cgpa"]):
+        return "exam"
+    return "general"
+
+
+def map_university_labels(df: pd.DataFrame) -> pd.DataFrame:
+    mapped = df.copy()
+    if "university" not in mapped.columns:
+        mapped["university"] = "University 1"
+        return mapped
+
+    unique_vals = [u for u in mapped["university"].dropna().astype(str).unique().tolist()]
+    if not unique_vals:
+        mapped["university"] = "University 1"
+        return mapped
+
+    mapping = {}
+    for idx, name in enumerate(sorted(unique_vals)):
+        mapping[name] = UNIVERSITIES[idx % len(UNIVERSITIES)]
+    mapped["university"] = mapped["university"].astype(str).map(mapping).fillna("University 1")
+    return mapped
+
 
 @st.cache_data
-def load_base()->pd.DataFrame:
-    f=pd.read_csv('UniAssist_training_data.csv')
-    if 'question' not in f.columns or 'answer' not in f.columns: raise ValueError("CSV needs 'question' and 'answer'")
-    f=f.copy();f['question']=f['question'].astype(str);f['answer']=f['answer'].astype(str)
-    if 'university' not in f.columns: f['university']='Default University'
-    if 'category' not in f.columns: f['category']=f['question'].apply(cat)
-    if 'source' not in f.columns: f['source']='UniAssist_training_data.csv'
-    if 'last_updated' not in f.columns: f['last_updated']='2026-01-01'
-    if 'policy_link' not in f.columns: f['policy_link']='https://university.example/policies'
-    return f
-@st.cache_resource
-def model()->SentenceTransformer: return SentenceTransformer('all-MiniLM-L6-v2')
-@st.cache_resource
-def embeds(qs:tuple[str,...])->np.ndarray: return model().encode(list(qs),normalize_embeddings=True)
-def kb()->pd.DataFrame:
-    b=load_base();c=st.session_state.get('custom_kb',pd.DataFrame())
-    if c.empty: return b
-    return pd.concat([b,c],ignore_index=True).drop_duplicates(subset=['question','answer'],keep='last')
-def retrieve(q:str,k:pd.DataFrame,u:str,cf:str,top:int)->pd.DataFrame:
-    f=k[k['university'].isin([u,'Default University'])].copy()
-    if cf!='All': f=f[f['category']==cf]
-    if f.empty: f=k.copy()
-    qs=f['question'].tolist();sem=cosine_similarity(model().encode([q],normalize_embeddings=True),embeds(tuple(qs)))[0]
-    qt=tok(q);key=np.array([len(qt&tok(x))/max(len(qt),1) for x in qs]);bonus=np.where(f['category'].values==cat(q),0.05,0.0)
-    f=f.copy();f['score']=sem*0.72+key*0.23+bonus
-    return f.sort_values('score',ascending=False).head(top)
-def answer(q:str,k:pd.DataFrame,u:str,cf:str,top:int)->dict:
-    t=time.perf_counter();r=retrieve(q,k,u,cf,top);lat=int((time.perf_counter()-t)*1000)
-    if r.empty: return {'answer':'No answer found.','confidence':0.0,'category':'general','citations':[],'matched':None,'fresh':365,'latency':lat}
-    b=r.iloc[0];lu=pd.to_datetime(b.get('last_updated','2026-01-01'),errors='coerce');fresh=365 if pd.isna(lu) else (datetime.now()-lu.to_pydatetime()).days
-    cites=[{'source':str(x.get('source','unknown')),'link':str(x.get('policy_link','https://university.example/policies')),'updated':str(x.get('last_updated','unknown'))} for _,x in r.iterrows()]
-    return {'answer':str(b['answer']),'confidence':float(b['score']),'category':str(b.get('category','general')),'citations':cites,'matched':str(b['question']),'fresh':fresh,'latency':lat}
-def init():
-    d={'authenticated':False,'username':'guest','role':'student','conversation':[],'custom_kb':pd.DataFrame(),'review_queue':[],'resolved_queue':[],'tickets':[],'policy_hashes':{},'consent':True,'session_started':time.time(),'similarity_threshold':SIM_DEFAULT,'last_response':None,'checklist':[{'task':'Update resume','due':str(date.today()),'done':False},{'task':'Review attendance','due':str(date.today()),'done':False}]}
-    for k,v in d.items():
-        if k not in st.session_state: st.session_state[k]=v
+def load_data() -> pd.DataFrame:
+    frame = pd.read_csv("UniAssist_training_data.csv")
+    if "question" not in frame.columns or "answer" not in frame.columns:
+        raise ValueError("UniAssist_training_data.csv must contain 'question' and 'answer' columns")
 
-def sidebar():
+    frame = map_university_labels(frame)
+    frame["question"] = frame["question"].astype(str)
+    frame["answer"] = frame["answer"].astype(str)
+    if "category" not in frame.columns:
+        frame["category"] = frame["question"].apply(infer_category)
+    if "source" not in frame.columns:
+        frame["source"] = "UniAssist_training_data.csv"
+    if "last_updated" not in frame.columns:
+        frame["last_updated"] = "2026-02-01"
+    if "policy_link" not in frame.columns:
+        frame["policy_link"] = "https://www.ugc.gov.in/"
+    return frame
+
+
+@st.cache_resource
+def load_model() -> SentenceTransformer:
+    return SentenceTransformer("all-MiniLM-L6-v2")
+
+
+@st.cache_resource
+def get_embeddings(questions: tuple[str, ...]) -> np.ndarray:
+    return load_model().encode(list(questions), normalize_embeddings=True)
+
+
+def active_kb() -> pd.DataFrame:
+    base = load_data()
+    extra = st.session_state.get("extra_sources", pd.DataFrame())
+    if extra.empty:
+        return base
+    combined = pd.concat([base, extra], ignore_index=True)
+    return combined.drop_duplicates(subset=["question", "answer"], keep="last")
+
+
+def retrieve_dataset_answer(query: str, kb_df: pd.DataFrame, university: str, category_filter: str, top_k: int) -> dict:
+    # Core logic preserved: dataset retrieval using embeddings + cosine similarity + threshold gating.
+    filtered = kb_df[kb_df["university"].isin([university, "University 1"])].copy()
+    if category_filter != "All":
+        filtered = filtered[filtered["category"] == category_filter]
+    if filtered.empty:
+        filtered = kb_df.copy()
+
+    questions = filtered["question"].tolist()
+    embeddings = get_embeddings(tuple(questions))
+
+    start = time.perf_counter()
+    query_vec = load_model().encode([query], normalize_embeddings=True)
+    semantic_scores = cosine_similarity(query_vec, embeddings)[0]
+    latency_ms = int((time.perf_counter() - start) * 1000)
+
+    q_tokens = tokenize(query)
+    keyword_scores = np.array([len(q_tokens & tokenize(q)) / max(len(q_tokens), 1) for q in questions])
+    bonus = np.where(filtered["category"].values == infer_category(query), 0.05, 0.0)
+    final_scores = (semantic_scores * 0.72) + (keyword_scores * 0.23) + bonus
+
+    ranked = filtered.copy()
+    ranked["score"] = final_scores
+    ranked = ranked.sort_values("score", ascending=False).head(top_k)
+
+    if ranked.empty:
+        return {
+            "answer": SAFE_FALLBACK,
+            "confidence": 0.0,
+            "category": "general",
+            "citations": [],
+            "matched_question": None,
+            "latency_ms": latency_ms,
+            "freshness_days": 365,
+        }
+
+    best = ranked.iloc[0]
+    best_updated = pd.to_datetime(best.get("last_updated", "2026-02-01"), errors="coerce")
+    freshness_days = 365 if pd.isna(best_updated) else max(0, (datetime.now() - best_updated.to_pydatetime()).days)
+    citations = []
+    for _, row in ranked.iterrows():
+        citations.append(
+            {
+                "source": str(row.get("source", "unknown")),
+                "updated": str(row.get("last_updated", "unknown")),
+                "link": str(row.get("policy_link", "https://www.ugc.gov.in/")),
+            }
+        )
+
+    return {
+        "answer": str(best["answer"]),
+        "confidence": float(best["score"]),
+        "category": str(best.get("category", "general")),
+        "citations": citations,
+        "matched_question": str(best["question"]),
+        "latency_ms": latency_ms,
+        "freshness_days": freshness_days,
+    }
+
+
+def init_session() -> None:
+    defaults = {
+        "authenticated": False,
+        "username": "guest",
+        "role": "student",
+        "extra_sources": pd.DataFrame(),
+        "review_queue": [],
+        "resolved_reviews": [],
+        "last_response": None,
+        "conversation": [],
+        "checklist": [
+            {"task": "Update resume", "due": str(date.today()), "done": False},
+            {"task": "Check attendance", "due": str(date.today()), "done": False},
+        ],
+        "similarity_threshold": SIMILARITY_DEFAULT,
+        "verified_mode": True,
+        "consent": True,
+        "session_start": time.time(),
+        "policy_hashes": {},
+    }
+    for key, val in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = val
+
+
+def login_sidebar() -> None:
     with st.sidebar:
-        st.header('Access');st.caption('Demo accounts: student_demo / faculty_demo / admin_demo')
-        if not st.session_state['authenticated']:
-            with st.form('login'):
-                u=st.text_input('Username','student_demo');p=st.text_input('Password',type='password',value='student123')
-                if st.form_submit_button('Login'):
-                    rec=USERS.get(u)
-                    if rec and rec['password']==p:
-                        st.session_state['authenticated']=True;st.session_state['username']=u;st.session_state['role']=rec['role'];st.success('Authenticated')
-                    else: st.error('Invalid credentials')
+        st.subheader("Access")
+        st.caption("Roles: student / organisation / parents / developer_admin")
+
+        if not st.session_state["authenticated"]:
+            with st.form("login_form"):
+                user = st.text_input("Username", value="student_demo")
+                password = st.text_input("Password", value="student123", type="password")
+                submit = st.form_submit_button("Login")
+                if submit:
+                    rec = USERS.get(user)
+                    if rec and rec["password"] == password:
+                        st.session_state["authenticated"] = True
+                        st.session_state["username"] = user
+                        st.session_state["role"] = rec["role"]
+                        st.success("Logged in")
+                    else:
+                        st.error("Invalid credentials")
         else:
-            st.success(f"Logged in: {st.session_state['username']} ({st.session_state['role']})")
-            if st.button('Logout'):
-                st.session_state['authenticated']=False;st.session_state['username']='guest';st.session_state['role']='student';st.session_state['conversation']=[];st.session_state['last_response']=None;st.rerun()
-        st.divider();u=st.selectbox('University',list(TENANTS.keys()),key='selected_university');st.caption(f"Policy owner: {TENANTS[u]['owner']}")
-        st.slider('Similarity threshold',0.50,0.90,SIM_DEFAULT,0.01,key='similarity_threshold')
-        st.checkbox('Consent to store query analytics',key='consent');st.toggle('Verified answer mode',value=True,key='verified_mode')
-        st.selectbox('Preferred language',LANGS,key='preferred_language');st.toggle('Parent/Guardian read-only mode',False,key='parent_mode');st.toggle('Offline kiosk mode',False,key='offline_mode')
-        st.divider();st.caption(f"Session uptime: {int((time.time()-st.session_state['session_started'])/60)} min");st.caption('Auth: RBAC enabled');st.caption('Rate limiting: Demo mode')
-def log_query(r:dict,q:str,dpt:str,sem:int,scope_pass:bool,esc:bool):
-    if not st.session_state['consent']: return
-    append_row(QUERY_LOG_FILE,{'timestamp':datetime.now().isoformat(timespec='seconds'),'user':st.session_state['username'],'role':st.session_state['role'],'university':st.session_state['selected_university'],'department':dpt,'semester':sem,'query':q,'category':r['category'],'confidence':round(r['confidence'],4),'scope_pass':int(scope_pass),'latency_ms':r['latency'],'escalated':int(esc)})
+            st.success(f"{st.session_state['username']} ({st.session_state['role']})")
+            if st.button("Logout"):
+                st.session_state["authenticated"] = False
+                st.session_state["username"] = "guest"
+                st.session_state["role"] = "student"
+                st.session_state["conversation"] = []
+                st.rerun()
 
-def assistant_tab(k:pd.DataFrame):
-    st.subheader('AI Guidance Assistant')
-    c1,c2,c3=st.columns([1.1,1,1])
-    with c1: dpt=st.selectbox('Department',['CSE','ECE','ME','CE'],key='department')
-    with c2: sem=st.selectbox('Semester',list(range(1,9)),key='semester')
-    with c3: cf=st.selectbox('Category filter',['All','attendance','exam','internship','general'])
-    if hasattr(st,'audio_input'):
-        a=st.audio_input('Voice query (beta)')
-        if a is not None: st.info('Voice captured. Connect STT provider for transcription.')
-    with st.form('qa_form'):
-        q=st.text_area('Ask your question',placeholder='What is the minimum attendance required for semester exams?',height=90)
-        top=st.slider('Top sources',1,5,3);ask=st.form_submit_button('Get Verified Answer')
-    if ask:
-        q=q.strip()
-        if not q: st.warning('Please enter a question.');return
-        ok,msg=guard(q)
-        if not ok: st.error(msg);return
-        r=answer(q,k,st.session_state['selected_university'],cf,top);ts=trust(r['confidence'],r['fresh'],len(r['citations']));esc=r['confidence']<st.session_state['similarity_threshold']
-        shown=r['answer']
-        if esc:
-            st.session_state['review_queue'].append({'timestamp':datetime.now().isoformat(timespec='seconds'),'query':q,'suggested_answer':r['answer'],'confidence':r['confidence'],'category':r['category']})
-            shown='I do not have high-confidence evidence. This query has been added to human review queue.'
-        st.write(tr(shown,st.session_state['preferred_language']))
-        st.caption(f"Confidence: {r['confidence']:.2f} | Trust: {ts}/100 | Latency: {r['latency']} ms")
-        st.caption(f"Matched question: {r['matched']}")
-        st.markdown('### Next 3 Steps')
-        for s in STEPS.get(r['category'],STEPS['general']): st.write(f'- {s}')
-        if st.session_state['verified_mode']:
-            st.markdown('### Citations')
-            for c in r['citations']: st.write(f"- Source: {c['source']} | Updated: {c['updated']} | Link: {c['link']}")
-        st.session_state['last_response']={'query':q,'response':shown,'confidence':r['confidence'],'category':r['category']}
-        st.session_state['conversation'].append({'q':q,'a':shown});log_query(r,q,dpt,sem,True,esc)
-    st.markdown('### Feedback Loop')
-    if st.session_state['last_response'] is not None:
-        with st.form('feedback_form'):
-            fb=st.radio('Was this helpful?',['👍 Helpful','👎 Not helpful'],horizontal=True);cm=st.text_input('Optional correction')
-            if st.form_submit_button('Submit feedback'):
-                lr=st.session_state['last_response']
-                append_row(FEEDBACK_FILE,{'timestamp':datetime.now().isoformat(timespec='seconds'),'user':st.session_state['username'],'role':st.session_state['role'],'university':st.session_state['selected_university'],'query':lr['query'],'response':lr['response'],'confidence':lr['confidence'],'feedback':fb,'comment':cm})
-                st.success('Feedback saved')
-        if st.button('Escalate to Counselor'):
-            lr=st.session_state['last_response'];st.session_state['tickets'].append({'time':datetime.now().isoformat(timespec='seconds'),'user':st.session_state['username'],'query':lr['query'],'summary':f"Category={lr['category']} confidence={lr['confidence']:.2f}"});st.success('Escalation ticket created')
-    with st.expander('Conversation Memory'):
-        if not st.session_state['conversation']: st.caption('No prior conversation')
+        st.divider()
+        st.selectbox("University", UNIVERSITIES, key="selected_university")
+        st.slider("Similarity threshold", 0.50, 0.90, SIMILARITY_DEFAULT, 0.01, key="similarity_threshold")
+        st.selectbox("Language", LANGUAGES, key="preferred_language")
+        st.toggle("Verified answer mode", key="verified_mode")
+        st.checkbox("Allow analytics logging", key="consent")
+
+        uptime = int((time.time() - st.session_state["session_start"]) / 60)
+        st.caption(f"Region: India (IST)")
+        st.caption(f"Session uptime: {uptime} min")
+
+
+def translate_answer(text: str, lang: str) -> str:
+    if lang == "English":
+        return text
+    return f"[{lang} preview] {text}"
+
+
+def in_scope(query: str) -> bool:
+    return len(tokenize(query) & SCOPE_KEYWORDS) > 0
+
+
+def log_query(query: str, result: dict, dept: str, sem: int, escalated: bool) -> None:
+    if not st.session_state["consent"]:
+        return
+    append_row(
+        QUERY_LOG_FILE,
+        {
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "user": st.session_state["username"],
+            "role": st.session_state["role"],
+            "university": st.session_state["selected_university"],
+            "department": dept,
+            "semester": sem,
+            "query": query,
+            "category": result["category"],
+            "confidence": round(result["confidence"], 4),
+            "latency_ms": result["latency_ms"],
+            "escalated": int(escalated),
+        },
+    )
+
+
+def assistant_tab(kb_df: pd.DataFrame) -> None:
+    st.subheader("Academic Assistant")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        dept = st.selectbox("Department", ["CSE", "ECE", "ME", "CE"], key="department")
+    with c2:
+        sem = st.selectbox("Semester", list(range(1, 9)), key="semester")
+    with c3:
+        category_filter = st.selectbox(
+            "Category",
+            ["All", "attendance", "exam", "internship", "general"],
+            key="assistant_category",
+        )
+
+    with st.form("qa_form"):
+        query = st.text_area("Ask your query", placeholder="Example: minimum attendance for semester exams")
+        top_k = st.slider("Top sources", 1, 5, 3, key="assistant_top_k")
+        asked = st.form_submit_button("Get answer")
+
+    if asked:
+        query = query.strip()
+        if not query:
+            st.warning("Please enter a query.")
+            return
+        if not in_scope(query):
+            st.error("Out of scope. UniAssist currently handles academic and internship queries.")
+            return
+
+        result = retrieve_dataset_answer(query, kb_df, st.session_state["selected_university"], category_filter, top_k)
+        escalated = result["confidence"] < st.session_state["similarity_threshold"]
+        trust_score = compute_trust_score(
+            result["confidence"], len(result["citations"]), int(result.get("freshness_days", 365))
+        )
+
+        shown_answer = result["answer"] if not escalated else SAFE_FALLBACK
+        if escalated:
+            st.session_state["review_queue"].append(
+                {
+                    "time": datetime.now().isoformat(timespec="seconds"),
+                    "query": query,
+                    "suggested_answer": result["answer"],
+                    "confidence": result["confidence"],
+                }
+            )
+
+        st.markdown("<div class='answer-card'>" + translate_answer(shown_answer, st.session_state["preferred_language"]) + "</div>", unsafe_allow_html=True)
+        st.caption(
+            f"Confidence: {result['confidence']:.2f} | Trust score: {trust_score}/100 | Latency: {result['latency_ms']} ms"
+        )
+        st.caption(f"Matched query: {result['matched_question']}")
+
+        st.markdown("### Action Steps")
+        for step in CATEGORY_STEPS.get(result["category"], CATEGORY_STEPS["general"]):
+            st.write(f"- {step}")
+
+        if st.session_state["verified_mode"]:
+            st.markdown("### Citations")
+            for cite in result["citations"]:
+                st.write(f"- {cite['source']} | {cite['updated']} | {cite['link']}")
+
+        st.session_state["last_response"] = {
+            "query": query,
+            "response": shown_answer,
+            "confidence": result["confidence"],
+        }
+        st.session_state["conversation"].append({"q": query, "a": shown_answer})
+        log_query(query, result, dept, sem, escalated)
+
+    st.markdown("### Feedback")
+    if st.session_state["last_response"]:
+        if st.button("Escalate to academic office", key="escalate_btn"):
+            lr = st.session_state["last_response"]
+            append_row(
+                TICKETS_FILE,
+                {
+                    "timestamp": datetime.now().isoformat(timespec="seconds"),
+                    "user": st.session_state["username"],
+                    "role": st.session_state["role"],
+                    "query": lr["query"],
+                    "priority": "high" if lr["confidence"] < st.session_state["similarity_threshold"] else "normal",
+                    "status": "open",
+                },
+            )
+            st.success("Escalation ticket created")
+
+        with st.form("feedback_form"):
+            feedback = st.radio("Was this helpful?", ["Helpful", "Not helpful"], horizontal=True, key="feedback_choice")
+            comment = st.text_input("Correction (optional)", key="feedback_comment")
+            submitted = st.form_submit_button("Submit feedback")
+            if submitted:
+                lr = st.session_state["last_response"]
+                append_row(
+                    FEEDBACK_FILE,
+                    {
+                        "timestamp": datetime.now().isoformat(timespec="seconds"),
+                        "user": st.session_state["username"],
+                        "role": st.session_state["role"],
+                        "university": st.session_state["selected_university"],
+                        "query": lr["query"],
+                        "response": lr["response"],
+                        "confidence": lr["confidence"],
+                        "feedback": feedback,
+                        "comment": comment,
+                    },
+                )
+                st.success("Feedback captured")
+
+    with st.expander("Conversation memory"):
+        history = st.session_state["conversation"][-8:]
+        if not history:
+            st.caption("No conversation yet.")
         else:
-            for t in st.session_state['conversation'][-10:]: st.write(f"Q: {t['q']}");st.write(f"A: {t['a']}");st.write('---')
+            for turn in history:
+                st.write(f"Q: {turn['q']}")
+                st.write(f"A: {turn['a']}")
+                st.write("---")
 
-def student_tab():
-    st.subheader('Student Success Center')
-    c1,c2,c3=st.columns(3)
-    with c1: ap=st.number_input('Current attendance %',0.0,100.0,78.0,0.1);cd=st.number_input('Classes completed',1,500,60)
-    with c2: fc=st.number_input('Upcoming classes',0,200,20);af=st.number_input('Planned attended classes',0,200,16)
-    with c3: cg=st.number_input('Current CGPA',0.0,10.0,7.2,0.01);cr=st.number_input('Credits completed',1,250,90)
-    pa=attn_proj(ap,cd,fc,af);pc=cgpa_proj(cg,cr,20,8.0)
-    risks=[]
-    if pa<75: risks.append('Attendance risk')
-    if pc<6.0: risks.append('CGPA risk')
-    st.markdown('### Predictive Alerts')
-    if risks:
-        for r in risks:
-            st.error(r);append_row(ALERT_FILE,{'timestamp':datetime.now().isoformat(timespec='seconds'),'user':st.session_state['username'],'alert_type':r,'details':f'Projected attendance={pa}, projected CGPA={pc}'})
-    else: st.success('No immediate academic risk detected')
-    st.caption(f'Projected attendance: {pa}%');st.caption(f'Projected CGPA (what-if): {pc}')
-    st.markdown('### Scholarship + Internship Matcher')
-    p=pd.DataFrame([{'program':'Merit Scholarship A','requires_cgpa':8.0,'domain':'academic','deadline':'2026-03-10'},{'program':'AI Internship Track','requires_cgpa':7.0,'domain':'ai','deadline':'2026-03-25'},{'program':'Core Engineering Internship','requires_cgpa':6.5,'domain':'core','deadline':'2026-04-12'}])
-    dom=st.selectbox('Interest domain',['ai','core','academic']);p['fit']=p.apply(lambda r:(20 if cg>=r['requires_cgpa'] else 0)+(80 if r['domain']==dom else 30),axis=1);st.dataframe(p.sort_values('fit',ascending=False),use_container_width=True)
-    st.markdown('### Placement Readiness Engine')
-    a,b,c=st.columns(3)
-    with a: rs=st.slider('Resume score',0,100,68)
-    with b: mi=st.slider('Mock interviews',0,20,3)
-    with c: pr=st.slider('Projects',0,10,2)
-    rr=ready(rs,mi,pr);st.progress(rr/100);st.caption(f'Readiness score: {rr}/100')
-    if st.session_state['parent_mode']:
-        st.markdown('### Parent / Guardian View');st.info('Read-only summary enabled');st.write({'attendance_projection':pa,'cgpa_projection':pc,'risk_flags':risks or ['none']})
 
-def workflow_tab():
-    st.subheader('Workflow Automation');st.markdown('### Deadline Reminders + Checklist');cl=st.session_state['checklist']
-    for i,it in enumerate(cl):
-        cols=st.columns([3,2,1]);cols[0].write(it['task']);cols[1].write(it['due']);it['done']=cols[2].checkbox('Done',value=it['done'],key=f'check_{i}')
-    with st.form('add_task'):
-        t=st.text_input('New task');d=st.date_input('Due date',value=date.today(),key='new_due')
-        if st.form_submit_button('Add task') and t.strip(): cl.append({'task':t.strip(),'due':str(d),'done':False});st.success('Task added')
-    st.markdown('### Smart Form: Leave/Attendance Request')
-    with st.form('leave'):
-        r=st.text_input('Reason');n=st.number_input('No. of days',1,30,2)
-        if st.form_submit_button('Generate request'): st.code(f'Subject: Attendance regularization request\nReason: {r}\nDays: {n}\nRequest: Kindly regularize attendance as per policy.',language='text')
-    st.markdown('### Smart Form: Grade Appeal Draft')
-    with st.form('appeal'):
-        c=st.text_input('Course code');g=st.text_area('Appeal reason')
-        if st.form_submit_button('Generate appeal'): st.code(f'Subject: Grade Appeal - {c}\nI request a revaluation for {c}.\nReason: {g}\nAttached evidence enclosed.',language='text')
-    st.markdown('### Internship Application Copilot')
-    with st.form('intern'):
-        role=st.text_input('Target role','Software Intern');s=st.text_area('Top strengths','Python, ML, problem-solving')
-        if st.form_submit_button('Generate application email'): st.code(f'Dear Hiring Team,\nI am applying for the {role} position.\nMy relevant strengths: {s}.\nPlease find attached my resume.\nRegards',language='text')
-def analytics_tab():
-    st.subheader('Analytics, Benchmarking, and Evaluation')
-    ql=pd.read_csv(QUERY_LOG_FILE);fl=pd.read_csv(FEEDBACK_FILE)
-    c1,c2,c3,c4=st.columns(4)
-    c1.metric('Queries',len(ql));c2.metric('Avg confidence',round(ql['confidence'].mean(),2) if not ql.empty else 0);c3.metric('Avg latency (ms)',int(ql['latency_ms'].mean()) if not ql.empty else 0)
-    hr=(fl['feedback'].eq('👍 Helpful').mean()*100) if not fl.empty else 0;c4.metric('Helpful rate',f'{hr:.1f}%')
-    st.markdown('### Department Benchmark')
-    if not ql.empty and 'department' in ql.columns:
-        d=ql.groupby('department',as_index=False).agg(avg_confidence=('confidence','mean'),avg_latency=('latency_ms','mean'),total_queries=('query','count'));st.dataframe(d,use_container_width=True)
-    else: st.info('No query benchmark data yet')
-    st.markdown('### Failure Topics')
-    if not ql.empty:
-        low=ql[ql['confidence']<st.session_state['similarity_threshold']]
-        if not low.empty: st.dataframe(low[['timestamp','query','category','confidence']].tail(20),use_container_width=True)
-        else: st.success('No low-confidence queries in current logs')
-    st.markdown('### Continuous Evaluation Suite')
-    ev=pd.DataFrame([{'question':'minimum attendance requirement','expected':'attendance'},{'question':'how to apply for internship','expected':'internship'},{'question':'grade revaluation process','expected':'exam'}]);k=kb()
-    if st.button('Run evaluation'):
-        ok=0;rows=[]
-        for _,r in ev.iterrows():
-            out=answer(r['question'],k,st.session_state['selected_university'],'All',3);p=out['category']==r['expected'];ok+=int(p);rows.append({'question':r['question'],'expected':r['expected'],'predicted':out['category'],'confidence':round(out['confidence'],3),'pass':p})
-        st.metric('Evaluation score',f"{(ok/len(ev))*100:.1f}%");st.dataframe(pd.DataFrame(rows),use_container_width=True)
+def organisation_tab() -> None:
+    st.subheader("Organisation Desk")
+    st.caption("Post internship opportunities as additional verified sources.")
+    with st.form("org_source_form"):
+        program = st.text_input("Program / Opportunity title", key="org_program")
+        eligibility = st.text_input("Eligibility summary", key="org_eligibility")
+        deadline = st.date_input("Deadline", value=date.today(), key="org_deadline")
+        submit = st.form_submit_button("Publish source")
+        if submit and program.strip() and eligibility.strip():
+            row = pd.DataFrame(
+                [
+                    {
+                        "question": f"How to apply for {program}?",
+                        "answer": f"Eligibility: {eligibility}. Deadline: {deadline}. Apply via placement cell.",
+                        "university": st.session_state["selected_university"],
+                        "category": "internship",
+                        "source": "organisation_portal",
+                        "last_updated": str(date.today()),
+                        "policy_link": "https://www.aicte-india.org/",
+                    }
+                ]
+            )
+            existing = st.session_state["extra_sources"]
+            st.session_state["extra_sources"] = pd.concat([existing, row], ignore_index=True)
+            st.success("New source added to knowledge base")
 
-def admin_tab():
-    st.subheader('Admin Controls')
-    if st.session_state['role']!='admin': st.warning('Admin role required');return
-    st.markdown('### Knowledge Base Uploader')
-    up=st.file_uploader('Upload knowledge CSV',type=['csv'],key='kb_upload')
-    if up is not None:
-        n=pd.read_csv(up)
-        if 'question' in n.columns and 'answer' in n.columns:
-            if 'university' not in n.columns: n['university']=st.session_state['selected_university']
-            if 'category' not in n.columns: n['category']=n['question'].astype(str).apply(cat)
-            if 'source' not in n.columns: n['source']='admin_upload.csv'
-            if 'last_updated' not in n.columns: n['last_updated']=str(date.today())
-            if 'policy_link' not in n.columns: n['policy_link']='https://university.example/uploaded'
-            st.session_state['custom_kb']=pd.concat([st.session_state['custom_kb'],n],ignore_index=True);st.success(f'Added {len(n)} records to in-session KB')
-        else: st.error('CSV must contain question and answer columns')
-    st.markdown('### Human Review Queue')
-    q=st.session_state['review_queue']
-    if not q: st.info('No items in review queue')
+
+def student_toolkit_tab() -> None:
+    st.subheader("Student Toolkit")
+
+    st.markdown("### What-if Simulator")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        cur_att = st.number_input("Current attendance %", 0.0, 100.0, 78.0, 0.1, key="tool_attendance")
+        done_classes = st.number_input("Classes completed", 1, 500, 60, key="tool_done_classes")
+    with c2:
+        upcoming = st.number_input("Upcoming classes", 0, 200, 20, key="tool_upcoming")
+        attend_upcoming = st.number_input("Planned attended classes", 0, 200, 16, key="tool_attend_upcoming")
+    with c3:
+        cur_cgpa = st.number_input("Current CGPA", 0.0, 10.0, 7.2, 0.01, key="tool_cgpa")
+        credits_done = st.number_input("Credits completed", 1, 250, 90, key="tool_credits_done")
+    expected_gp = st.slider("Expected grade points in next credits", 0.0, 10.0, 8.0, 0.1, key="tool_expected_gp")
+    future_credits = st.slider("Future credits", 1, 40, 20, key="tool_future_credits")
+
+    proj_att = projected_attendance(cur_att, done_classes, upcoming, attend_upcoming)
+    proj_cg = projected_cgpa(cur_cgpa, credits_done, future_credits, expected_gp)
+    st.caption(f"Projected attendance: {proj_att}%")
+    st.caption(f"Projected CGPA: {proj_cg}")
+    if st.button("Run risk check", key="tool_risk_check"):
+        if proj_att < 75:
+            st.warning("Attendance risk detected (<75%).")
+            append_row(
+                ALERTS_FILE,
+                {
+                    "timestamp": datetime.now().isoformat(timespec="seconds"),
+                    "user": st.session_state["username"],
+                    "alert_type": "attendance_risk",
+                    "details": f"Projected attendance {proj_att}",
+                },
+            )
+        else:
+            st.success("No attendance risk detected in current projection.")
+
+    st.markdown("### Checklist Planner")
+    checklist = st.session_state["checklist"]
+    for i, item in enumerate(checklist):
+        cols = st.columns([3, 2, 1])
+        cols[0].write(item["task"])
+        cols[1].write(item["due"])
+        item["done"] = cols[2].checkbox("Done", value=item["done"], key=f"todo_{i}")
+
+    with st.form("new_todo"):
+        task = st.text_input("New task", key="tool_new_task")
+        due = st.date_input("Due date", value=date.today(), key="tool_due_date")
+        if st.form_submit_button("Add task") and task.strip():
+            checklist.append({"task": task.strip(), "due": str(due), "done": False})
+            st.success("Task added")
+
+    st.markdown("### Scholarship / Internship Matcher")
+    domain = st.selectbox("Interest domain", ["AI", "Core", "Research", "Product"], key="tool_domain")
+    opportunities = pd.DataFrame(
+        [
+            {"name": "National Scholarship Track", "min_cgpa": 8.0, "domain": "Research", "deadline": "2026-04-15"},
+            {"name": "Industry Internship Pool", "min_cgpa": 7.0, "domain": "Product", "deadline": "2026-03-20"},
+            {"name": "AI Fellowship", "min_cgpa": 7.5, "domain": "AI", "deadline": "2026-05-10"},
+        ]
+    )
+    opportunities["fit_score"] = opportunities.apply(
+        lambda r: (60 if cur_cgpa >= r["min_cgpa"] else 20) + (40 if r["domain"] == domain else 15), axis=1
+    )
+    st.dataframe(opportunities.sort_values("fit_score", ascending=False), use_container_width=True)
+
+
+def analytics_tab() -> None:
+    st.subheader("Analytics and Quality")
+    logs = pd.read_csv(QUERY_LOG_FILE)
+    feedback = pd.read_csv(FEEDBACK_FILE)
+    tickets = pd.read_csv(TICKETS_FILE)
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Total queries", len(logs))
+    m2.metric("Avg confidence", round(logs["confidence"].mean(), 2) if not logs.empty else 0)
+    m3.metric("Avg latency (ms)", int(logs["latency_ms"].mean()) if not logs.empty else 0)
+    if feedback.empty:
+        m4.metric("Helpful rate", "0%")
     else:
-        for i,it in enumerate(q):
-            with st.expander(f"{i+1}. {it['query']} (confidence {it['confidence']:.2f})"):
-                fa=st.text_area('Final approved answer',value=it['suggested_answer'],key=f'rev_{i}')
-                if st.button('Approve',key=f'app_{i}'):
-                    st.session_state['resolved_queue'].append({**it,'final_answer':fa})
-                    add=pd.DataFrame([{'question':it['query'],'answer':fa,'university':st.session_state['selected_university'],'category':it['category'],'source':'human_review','last_updated':str(date.today()),'policy_link':'https://university.example/reviewed'}])
-                    st.session_state['custom_kb']=pd.concat([st.session_state['custom_kb'],add],ignore_index=True);q.pop(i);st.rerun()
-    st.markdown('### Policy Change Detector + Document Intelligence')
-    pf=st.file_uploader('Upload policy text/doc',type=['txt','md','csv'],key='policy_upload')
-    if pf is not None:
-        b=pf.getvalue();h=hashlib.sha256(b).hexdigest();ph=st.session_state['policy_hashes'].get(pf.name)
-        if ph and ph!=h: st.warning('Policy change detected for this document')
-        elif ph==h: st.info('No change since last upload')
-        else: st.success('New policy file registered')
-        st.session_state['policy_hashes'][pf.name]=h
-        lines=[x.strip() for x in b.decode('utf-8',errors='ignore').splitlines() if x.strip()][:8]
-        st.markdown('Key extracted lines');
-        for ln in lines: st.write(f'- {ln}')
-    st.markdown('### Staff Copilot: Draft Notice')
-    with st.form('notice'):
-        t=st.text_input('Notice topic','Exam schedule update');a=st.selectbox('Audience',['All students','Final year','Faculty']);dd=st.date_input('Deadline',date.today())
-        if st.form_submit_button('Generate notice'): st.code(f'Official Notice\nTopic: {t}\nAudience: {a}\nEffective Date: {dd}\nPlease comply with updated process as per academic office instructions.',language='text')
+        m4.metric("Helpful rate", f"{(feedback['feedback'].eq('Helpful').mean() * 100):.1f}%")
 
-def enterprise_tab():
-    st.subheader('Enterprise Readiness');st.markdown('### Integrations')
-    c1,c2,c3=st.columns(3);c1.toggle('LMS integration',True);c2.toggle('ERP/SIS integration',False);c3.toggle('Calendar + Email integration',True)
-    st.markdown('### Security and Compliance')
-    for s in ['SSO-ready authentication flow (demo active)','Role-based access control','Audit trail logs for queries/feedback/alerts','Consent-driven analytics capture','Data retention policy hooks']: st.write(f'- {s}')
-    rd=st.selectbox('Data retention',[30,90,180,365],index=1);st.caption(f'Current retention policy: {rd} days')
-    st.markdown('### Reliability Engineering')
-    ql=pd.read_csv(QUERY_LOG_FILE)
-    if ql.empty: st.info('No runtime metrics yet')
+    st.markdown("### Ticket Queue")
+    if tickets.empty:
+        st.caption("No tickets created.")
     else:
-        p95=int(ql['latency_ms'].quantile(0.95));lr=float((ql['confidence']<st.session_state['similarity_threshold']).mean()*100)
-        st.write(f'- p95 latency: {p95} ms');st.write(f'- low-confidence rate: {lr:.1f}%');st.write('- fallback model policy: enabled')
-    st.markdown('### Monetization and SLA')
-    st.dataframe(pd.DataFrame([{'plan':'Starter','monthly_usd':199,'queries':'25k','sla':'Best effort'},{'plan':'Growth','monthly_usd':699,'queries':'150k','sla':'99.5%'},{'plan':'Enterprise','monthly_usd':2499,'queries':'Unlimited','sla':'99.9%'}]),use_container_width=True)
+        st.dataframe(tickets.tail(20), use_container_width=True)
 
-def main():
-    ensure_storage();init();st.title('🎓 UniAssist Pro');st.caption('Commercial-grade Academic & Internship Guidance Platform');sidebar()
-    if st.session_state['offline_mode']: st.info('Offline kiosk mode active: local cached knowledge and no external calls')
-    k=kb();t1,t2,t3,t4,t5,t6=st.tabs(['Assistant','Student Success','Workflows','Analytics','Admin','Enterprise'])
-    with t1: assistant_tab(k)
-    with t2: student_tab()
-    with t3: workflow_tab()
-    with t4: analytics_tab()
-    with t5: admin_tab()
-    with t6: enterprise_tab()
-    st.divider();st.caption('© 2026 UniAssist Pro | Publishable prototype with enterprise feature set')
+    st.markdown("### Evaluation (quick)")
+    if st.button("Run mini evaluation", key="analytics_eval_btn"):
+        kb_df = active_kb()
+        eval_rows = [
+            ("minimum attendance requirement", "attendance"),
+            ("how to apply for internship", "internship"),
+            ("grade revaluation process", "exam"),
+        ]
+        outcomes = []
+        correct = 0
+        for q, expected in eval_rows:
+            out = retrieve_dataset_answer(q, kb_df, st.session_state["selected_university"], "All", 3)
+            passed = out["category"] == expected
+            correct += int(passed)
+            outcomes.append(
+                {
+                    "query": q,
+                    "expected": expected,
+                    "predicted": out["category"],
+                    "confidence": round(out["confidence"], 3),
+                    "pass": passed,
+                }
+            )
+        st.metric("Evaluation score", f"{(correct / len(eval_rows)) * 100:.1f}%")
+        st.dataframe(pd.DataFrame(outcomes), use_container_width=True)
 
-if __name__=='__main__': main()
+
+def parents_tab() -> None:
+    st.subheader("Parents Overview")
+    st.info("Read-only dashboard for progress tracking and official process visibility.")
+
+    col1, col2, col3 = st.columns(3)
+    col1.markdown("<div class='metric-card'><b>Attendance Risk</b><br>Monitor weekly</div>", unsafe_allow_html=True)
+    col2.markdown("<div class='metric-card'><b>Exam Cycle</b><br>Follow notices</div>", unsafe_allow_html=True)
+    col3.markdown("<div class='metric-card'><b>Internship Stage</b><br>Preparation phase</div>", unsafe_allow_html=True)
+
+    st.markdown("### Latest conversation snapshot")
+    if st.session_state["conversation"]:
+        last = st.session_state["conversation"][-1]
+        st.write(f"Q: {last['q']}")
+        st.write(f"A: {last['a']}")
+    else:
+        st.caption("No conversation yet.")
+
+    st.markdown("### Recent Alerts")
+    alerts = pd.read_csv(ALERTS_FILE)
+    if alerts.empty:
+        st.caption("No alerts yet.")
+    else:
+        st.dataframe(alerts.tail(10), use_container_width=True)
+
+
+def admin_tab() -> None:
+    st.subheader("Developer / Admin Console")
+    st.caption("Manage review queue, add data sources, and monitor quality.")
+
+    st.markdown("### Review queue")
+    queue = st.session_state["review_queue"]
+    if not queue:
+        st.caption("No pending low-confidence queries.")
+    else:
+        for i, item in enumerate(queue):
+            with st.expander(f"{i+1}. {item['query']} ({item['confidence']:.2f})"):
+                approved = st.text_area("Approved answer", value=item["suggested_answer"], key=f"approved_{i}")
+                if st.button("Approve and add", key=f"approve_btn_{i}"):
+                    row = pd.DataFrame(
+                        [
+                            {
+                                "question": item["query"],
+                                "answer": approved,
+                                "university": st.session_state["selected_university"],
+                                "category": infer_category(item["query"]),
+                                "source": "admin_review",
+                                "last_updated": str(date.today()),
+                                "policy_link": "https://www.ugc.gov.in/",
+                            }
+                        ]
+                    )
+                    st.session_state["extra_sources"] = pd.concat([st.session_state["extra_sources"], row], ignore_index=True)
+                    queue.pop(i)
+                    st.success("Approved answer added as source")
+                    st.rerun()
+
+    st.markdown("### Upload extra source CSV")
+    uploaded = st.file_uploader("CSV with question and answer columns", type=["csv"], key="admin_source_upload")
+    if uploaded is not None:
+        add_df = pd.read_csv(uploaded)
+        if "question" in add_df.columns and "answer" in add_df.columns:
+            add_df = map_university_labels(add_df)
+            if "category" not in add_df.columns:
+                add_df["category"] = add_df["question"].astype(str).apply(infer_category)
+            if "source" not in add_df.columns:
+                add_df["source"] = "admin_upload"
+            if "last_updated" not in add_df.columns:
+                add_df["last_updated"] = str(date.today())
+            if "policy_link" not in add_df.columns:
+                add_df["policy_link"] = "https://www.ugc.gov.in/"
+            st.session_state["extra_sources"] = pd.concat([st.session_state["extra_sources"], add_df], ignore_index=True)
+            st.success(f"Added {len(add_df)} rows into active sources")
+        else:
+            st.error("CSV must include question and answer columns")
+
+    st.markdown("### Policy Change Detector")
+    policy_file = st.file_uploader("Upload policy text/CSV for change tracking", type=["txt", "md", "csv"], key="policy_detector")
+    if policy_file is not None:
+        file_bytes = policy_file.getvalue()
+        digest = hashlib.sha256(file_bytes).hexdigest()
+        prev = st.session_state["policy_hashes"].get(policy_file.name)
+        if prev is None:
+            st.success("New policy file registered.")
+        elif prev != digest:
+            st.warning("Policy change detected from previous upload.")
+        else:
+            st.info("No policy change detected.")
+        st.session_state["policy_hashes"][policy_file.name] = digest
+
+    st.markdown("### Quality snapshot")
+    logs = pd.read_csv(QUERY_LOG_FILE)
+    if logs.empty:
+        st.caption("No queries logged yet")
+    else:
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Total queries", len(logs))
+        c2.metric("Avg confidence", round(logs["confidence"].mean(), 2))
+        c3.metric("Escalation rate", f"{(logs['escalated'].mean()*100):.1f}%")
+        st.dataframe(logs.tail(20), use_container_width=True)
+
+
+def main() -> None:
+    ensure_storage()
+    init_session()
+
+    st.markdown(
+        """
+<div class='main-banner'>
+  <div class='main-title'>🎓 UniAssist India</div>
+  <div class='main-sub'>Dataset-grounded academic and internship assistant for Indian higher education workflows.</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    login_sidebar()
+    kb_df = active_kb()
+
+    base_tabs = ["Assistant"]
+    if st.session_state["role"] in ["student", "developer_admin"]:
+        base_tabs.append("Student Toolkit")
+    if st.session_state["role"] in ["student", "developer_admin", "parents"]:
+        base_tabs.append("Parents View")
+    if st.session_state["role"] in ["organisation", "developer_admin"]:
+        base_tabs.append("Organisation Desk")
+    if st.session_state["role"] == "developer_admin":
+        base_tabs.append("Admin Console")
+        base_tabs.append("Analytics")
+
+    tabs = st.tabs(base_tabs)
+    idx = 0
+
+    with tabs[idx]:
+        assistant_tab(kb_df)
+    idx += 1
+
+    if "Student Toolkit" in base_tabs:
+        with tabs[idx]:
+            student_toolkit_tab()
+        idx += 1
+
+    if "Parents View" in base_tabs:
+        with tabs[idx]:
+            parents_tab()
+        idx += 1
+
+    if "Organisation Desk" in base_tabs:
+        with tabs[idx]:
+            organisation_tab()
+        idx += 1
+
+    if "Admin Console" in base_tabs:
+        with tabs[idx]:
+            admin_tab()
+        idx += 1
+
+    if "Analytics" in base_tabs:
+        with tabs[idx]:
+            analytics_tab()
+
+    st.divider()
+    st.caption("© 2026 UniAssist India | Dataset-first retrieval system with role-based workflows")
+
+
+if __name__ == "__main__":
+    main()
