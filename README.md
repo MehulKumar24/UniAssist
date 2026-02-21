@@ -1,164 +1,79 @@
-🎓 UniAssist
-Academic & Internship Guidance Assistant
-UniAssist is a controlled, retrieval-based academic assistance system designed to answer university-related and internship-related queries accurately and safely.
-The project emphasizes correctness, scope control, and explainability, avoiding the common pitfalls of unrestricted generative chatbots.
+# UniAssist India
 
-📍 Problem Statement
-Students frequently face difficulty in accessing clear, consistent, and reliable information regarding:
-Attendance policies
-Internship eligibility and rules
-Academic procedures
-Examination and grading systems
-Generic AI chatbots often:
-Hallucinate answers
-Provide out-of-scope information
-Lack accountability in academic contexts
-UniAssist addresses these challenges by grounding responses in a curated dataset and enforcing strict scope control.
+UniAssist India is a Streamlit app for academic and internship guidance with a strict dataset-first retrieval architecture.
 
-🎯 Project Objectives
-Build a safe academic assistant that answers only verified queries
-Demonstrate understanding of semantic retrieval techniques
-Avoid hallucinations using similarity thresholds and fallback logic
-Deploy a real, usable web application
-Maintain academic integrity and originality
+## Core Logic (Preserved)
 
-🧠 System Architecture Overview
-UniAssist follows a retrieval-first architecture, not a free-form generative model.
-High-level flow:
-User Query
-↓
-Sentence Embedding
-↓
-Similarity Matching (Cosine Similarity)
-↓
-Safety Threshold Check
-↓
-Retrieved Answer OR Safe Fallback
-This design ensures:
-Predictable behavior
-Transparent logic
-Reduced risk of incorrect answers
+The answer pipeline is unchanged:
+1. Load Q&A from `UniAssist_training_data.csv`
+2. Generate embeddings with `all-MiniLM-L6-v2`
+3. Compute cosine similarity
+4. Apply threshold gating with safe fallback
 
-🗂️ Project Structure
-UniAssist/
-│
-├── Notebook_01_Data_Preparation.ipynb
-├── Notebook_02_Retrieval_System.ipynb
-├── Notebook_03_Safety_and_Scope.ipynb
-├── Notebook_04_Seq2Seq_Paraphrasing.ipynb
-│
-├── UniAssist_training_data.csv
-├── app.py
-├── requirements.txt
-└── README.md
+No free-form answer generation is used.
 
-📘 Development Notebooks (Explanation)
-🔹 Notebook 01 – Dataset Creation & Validation
-Manual creation of question–answer pairs
-Categorization of academic and internship queries
-Dataset consistency and formatting checks
-Outcome:
-A custom dataset (UniAssist_training_data.csv) used directly by the app.
+## Role Portals (Login Required)
 
-🔹 Notebook 02 – Semantic Retrieval System
-Sentence embeddings using SentenceTransformer
-Similarity computation using cosine similarity
-Evaluation of retrieval quality
-Outcome:
-Reliable semantic matching between user queries and stored questions.
+The app now has separate role sections, each with its own login gate:
+- Student
+- Teacher
+- Parent
+- Developer Admin
 
-🔹 Notebook 03 – Safety & Scope Control
-Definition of in-scope vs out-of-scope queries
-Similarity threshold tuning
-Polite fallback responses for unsupported questions
-Outcome:
-Prevention of hallucinated or unrelated answers.
+Demo credentials:
+- `student_demo / student123`
+- `teacher_demo / teacher123`
+- `parent_demo / parent123`
+- `admin_demo / admin123`
 
-🔹 Notebook 04 – Seq2Seq / Paraphrasing Model
-Training a Seq2Seq model to demonstrate ML training workflow
-Exploration of response paraphrasing
-Note:
-The deployed system prioritizes retrieval-based reliability.
-The Seq2Seq model is included as learning and enhancement evidence, not as the primary answer generator.
+## Public Section
 
-🧩 Core Technologies Used
-Python
-Streamlit – Web application framework
-Sentence-Transformers – Semantic embeddings
-Scikit-learn – Similarity computation
-Pandas / NumPy – Data handling
-PyTorch – Model backend
+- `Feedback & Ratings` tab is visible to everyone.
+- Global average rating is also visible in the sidebar.
+- Feedback data can be downloaded as CSV.
 
-🌐 Web Application (Deployment)
-Deployed using Streamlit Cloud
-Accessible via browser on:
-Desktop
-Tablet
-Mobile devices
-Supports “Add to Home Screen” for app-like usage on phones
+## UI Upgrade
 
-📱 Mobile Usage
-UniAssist does not require native installation.
-Steps:
-Open the deployed app URL in a mobile browser
-Use “Add to Home Screen”
-Launch like a normal app
+The interface has been polished for a smoother, premium feel:
+- Improved contrast handling for all text inputs and text areas
+- Safer field colors (input text no longer blends with background)
+- Upgraded cards, tabs, forms, and buttons with consistent visual hierarchy
+- Subtle motion/hover transitions for smoother interaction feedback
+- Better readability with cleaner spacing and typography
 
-⚠️ Scope & Limitations
-Responds only to academic and internship-related queries
-Does not replace official university notifications
-Answers are limited to the provided dataset
-Internet connection required
-These limitations are intentional to ensure safety and correctness.
+## Universities
 
-📜 Copyright, License & Usage Policy
-© 2026 Mehul Kumar. All rights reserved.
-The source code of this project is licensed under the Apache License, Version 2.0.
-Use, modification, and distribution of the code are permitted under the terms of the license, provided that proper attribution to the original author is maintained.
-The software is provided “AS IS”, without warranties or conditions of any kind.
+University names are anonymized and normalized to:
+- `University 1`
+- `University 2`
+- `University 3`
 
-Dataset Ownership & Restrictions
-The dataset used in this project (UniAssist_training_data.csv) is custom-created, manually curated, and authored by the project owner specifically for academic and demonstrative purposes.
-The dataset is not autogenerated, scraped, or externally sourced
-Unauthorized reuse, redistribution, or repackaging of the dataset—either in full or in part—without attribution is strongly discouraged
-Any academic or derivative use must explicitly credit the original author
+## Feature Modules
 
-Academic Integrity Statement
-This project was developed as part of academic learning and evaluation.
-The system design, dataset structure, logic flow, and implementation choices reflect the author’s independent understanding, experimentation, and decision-making.
-Any reuse of this work should:
-Maintain academic honesty
-Avoid misrepresentation of authorship
-Respect institutional and ethical guidelines
+- Dataset-grounded Assistant (confidence, trust score, citations, escalation)
+- Student Toolkit (attendance/CGPA what-if, checklist planner, matcher)
+- Teacher Desk (publish verified sources)
+- Parent Overview (read-only snapshot + alerts)
+- Developer Admin Console (review queue, source uploads, policy change detector, quality view)
+- Analytics (query metrics, ticket queue, mini evaluation)
+- Feedback & Ratings (rating form + export)
 
-Commercial & Derivative Use Notice
-While the Apache License 2.0 permits commercial use of the codebase, any commercial or large-scale deployment of this system should:
-Clearly disclose system limitations
-Ensure responsible and ethical usage
-Respect dataset ownership and attribution
-The author assumes no liability for misuse or misinterpretation of outputs.
+## Auto-Created Data Files
 
-Final Note
-This project is shared publicly for learning, transparency, and evaluation, not for uncredited replication.
-Responsible use and proper attribution are expected and appreciated.
+Stored under `data/`:
+- `feedback.csv`
+- `query_logs.csv`
+- `alerts.csv`
+- `tickets.csv`
 
-🚀 Future Scope & Enhancements
-Potential future improvements include:
-Multi-university support
-Role-based access (student / faculty)
-Feedback-based response refinement
-Hybrid retrieval + generation architecture
-API-based backend for commercial deployment
+## Setup
 
-👤 Author
-Mehul Kumar
-B.Tech (1st Year)
-South Asian University, New Delhi
-IIT Madras, Chennai
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
 
-✅ Final Remarks
-UniAssist was built with an emphasis on:
-Understanding over automation
-Safety over speculation
-Structure over improvisation
-The project demonstrates not only technical implementation but also responsible system design, making it suitable for both academic evaluation and future real-world extension. So copying of dataset is not recommended, codes may be copied as it is fundamental program and not unique. If dataset is copied without consent then legal action may apply as requirement.
+## Notes
+
+- This tool provides guidance only; official circulars remain authoritative.
+- Author and copyright are shown in-app.
