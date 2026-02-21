@@ -22,12 +22,11 @@ TICKETS_FILE = DATA_DIR / "tickets.csv"
 
 SIMILARITY_DEFAULT = 0.65
 UNIVERSITIES = ["University 1", "University 2", "University 3"]
-LANGUAGES = ["English", "Hindi", "Tamil", "Bengali"]
 
 USERS = {
     "student_demo": {"password": "student123", "role": "student"},
-    "organisation_demo": {"password": "org123", "role": "organisation"},
-    "parents_demo": {"password": "parents123", "role": "parents"},
+    "teacher_demo": {"password": "teacher123", "role": "teacher"},
+    "parent_demo": {"password": "parent123", "role": "parent"},
     "admin_demo": {"password": "admin123", "role": "developer_admin"},
 }
 
@@ -65,29 +64,131 @@ st.markdown(
   --brand-1: #ff8f1f;
   --brand-2: #0f8a5f;
   --brand-3: #1f4ed8;
+  --ink-1: #0f172a;
+  --ink-2: #334155;
+  --muted: #64748b;
+  --line: #cbd5e1;
   --card: #ffffff;
 }
 .main-banner {
-  border-radius: 16px;
-  padding: 18px 20px;
-  background: linear-gradient(120deg, rgba(255,143,31,0.15), rgba(15,138,95,0.15));
-  border: 1px solid rgba(31,78,216,0.2);
-  margin-bottom: 14px;
+  border-radius: 18px;
+  padding: 20px 22px;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(255,143,31,0.18) 0, rgba(255,143,31,0.03) 35%),
+    radial-gradient(circle at 95% 5%, rgba(31,78,216,0.16) 0, rgba(31,78,216,0.03) 30%),
+    linear-gradient(120deg, rgba(255,255,255,0.96), rgba(245,250,255,0.96));
+  border: 1px solid rgba(31,78,216,0.22);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  margin-bottom: 16px;
+  animation: riseIn 0.45s ease-out;
 }
-.main-title { font-size: 34px; font-weight: 800; color: var(--brand-3); }
-.main-sub { color: #334155; font-size: 15px; }
+.main-title { font-size: 36px; font-weight: 800; color: var(--brand-3); letter-spacing: 0.2px; }
+.main-sub { color: var(--ink-2); font-size: 15px; }
 .answer-card {
   background: var(--card);
   border-left: 6px solid var(--brand-3);
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+  color: var(--ink-1) !important;
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.answer-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.11);
 }
 .metric-card {
   background: #fff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #dbe4ef;
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--ink-1) !important;
+  box-shadow: 0 4px 12px rgba(2, 6, 23, 0.04);
+}
+
+[data-testid="stAppViewContainer"] {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(31,78,216,0.06) 0, rgba(31,78,216,0) 35%),
+    radial-gradient(circle at 0% 100%, rgba(15,138,95,0.06) 0, rgba(15,138,95,0) 35%),
+    #f8fafc;
+}
+
+/* Fix text and input contrast issues */
+.stTextInput input,
+.stTextArea textarea,
+.stNumberInput input,
+.stDateInput input,
+div[data-baseweb="select"] > div,
+div[data-baseweb="base-input"] > div {
+  background: #ffffff !important;
+  color: var(--ink-1) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+}
+
+.stTextInput input::placeholder,
+.stTextArea textarea::placeholder {
+  color: var(--muted) !important;
+  opacity: 1 !important;
+}
+
+.stTextInput input:focus,
+.stTextArea textarea:focus,
+.stNumberInput input:focus,
+.stDateInput input:focus {
+  border: 1px solid var(--brand-3) !important;
+  box-shadow: 0 0 0 3px rgba(31, 78, 216, 0.12) !important;
+}
+
+label[data-testid="stWidgetLabel"] p {
+  color: var(--ink-1) !important;
+  font-weight: 600 !important;
+}
+
+.stButton > button,
+[data-testid="baseButton-secondary"] {
+  border-radius: 10px !important;
+  border: 1px solid rgba(31, 78, 216, 0.35) !important;
+  background: linear-gradient(90deg, #1f4ed8, #1550b8) !important;
+  color: #ffffff !important;
+  transition: transform 0.15s ease, box-shadow 0.2s ease !important;
+  box-shadow: 0 6px 16px rgba(31, 78, 216, 0.24);
+}
+
+.stButton > button:hover,
+[data-testid="baseButton-secondary"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(31, 78, 216, 0.26) !important;
+}
+
+.stTabs [data-baseweb="tab-list"] {
+  gap: 8px;
+}
+
+.stTabs [data-baseweb="tab"] {
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 8px 14px;
+  border: 1px solid #dbe4ef;
+  background: #ffffff;
+  color: var(--ink-2);
+}
+
+.stTabs [aria-selected="true"] {
+  color: #ffffff !important;
+  background: linear-gradient(90deg, #1f4ed8, #1550b8) !important;
+  border-color: #1f4ed8 !important;
+}
+
+[data-testid="stForm"] {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+}
+
+@keyframes riseIn {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 </style>
 """,
@@ -99,8 +200,41 @@ def ensure_storage() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     if not FEEDBACK_FILE.exists():
         pd.DataFrame(
-            columns=["timestamp", "user", "role", "university", "query", "response", "confidence", "feedback", "comment"]
+            columns=[
+                "timestamp",
+                "user",
+                "role",
+                "university",
+                "query",
+                "response",
+                "confidence",
+                "feedback",
+                "rating",
+                "comment",
+            ]
         ).to_csv(FEEDBACK_FILE, index=False)
+    else:
+        feedback_df = pd.read_csv(FEEDBACK_FILE)
+        required_feedback_cols = [
+            "timestamp",
+            "user",
+            "role",
+            "university",
+            "query",
+            "response",
+            "confidence",
+            "feedback",
+            "rating",
+            "comment",
+        ]
+        changed = False
+        for col in required_feedback_cols:
+            if col not in feedback_df.columns:
+                feedback_df[col] = ""
+                changed = True
+        if changed:
+            feedback_df = feedback_df[required_feedback_cols]
+            feedback_df.to_csv(FEEDBACK_FILE, index=False)
     if not QUERY_LOG_FILE.exists():
         pd.DataFrame(
             columns=[
@@ -284,9 +418,8 @@ def retrieve_dataset_answer(query: str, kb_df: pd.DataFrame, university: str, ca
 
 def init_session() -> None:
     defaults = {
-        "authenticated": False,
-        "username": "guest",
-        "role": "student",
+        "active_user": "guest",
+        "role_sessions": {},
         "extra_sources": pd.DataFrame(),
         "review_queue": [],
         "resolved_reviews": [],
@@ -307,65 +440,79 @@ def init_session() -> None:
             st.session_state[key] = val
 
 
-def login_sidebar() -> None:
+def feedback_snapshot() -> tuple[float, int]:
+    if not FEEDBACK_FILE.exists():
+        return 0.0, 0
+    df = pd.read_csv(FEEDBACK_FILE)
+    if df.empty or "rating" not in df.columns:
+        return 0.0, 0
+    rating_series = pd.to_numeric(df["rating"], errors="coerce").dropna()
+    if rating_series.empty:
+        return 0.0, 0
+    return float(rating_series.mean()), int(rating_series.count())
+
+
+def render_sidebar() -> None:
     with st.sidebar:
-        st.subheader("Access")
-        st.caption("Roles: student / organisation / parents / developer_admin")
-
-        if not st.session_state["authenticated"]:
-            with st.form("login_form"):
-                user = st.text_input("Username", value="student_demo")
-                password = st.text_input("Password", value="student123", type="password")
-                submit = st.form_submit_button("Login")
-                if submit:
-                    rec = USERS.get(user)
-                    if rec and rec["password"] == password:
-                        st.session_state["authenticated"] = True
-                        st.session_state["username"] = user
-                        st.session_state["role"] = rec["role"]
-                        st.success("Logged in")
-                    else:
-                        st.error("Invalid credentials")
-        else:
-            st.success(f"{st.session_state['username']} ({st.session_state['role']})")
-            if st.button("Logout"):
-                st.session_state["authenticated"] = False
-                st.session_state["username"] = "guest"
-                st.session_state["role"] = "student"
-                st.session_state["conversation"] = []
-                st.rerun()
-
-        st.divider()
+        st.subheader("Configuration")
         st.selectbox("University", UNIVERSITIES, key="selected_university")
         st.slider("Similarity threshold", 0.50, 0.90, SIMILARITY_DEFAULT, 0.01, key="similarity_threshold")
-        st.selectbox("Language", LANGUAGES, key="preferred_language")
         st.toggle("Verified answer mode", key="verified_mode")
         st.checkbox("Allow analytics logging", key="consent")
 
-        uptime = int((time.time() - st.session_state["session_start"]) / 60)
+        avg_rating, rating_count = feedback_snapshot()
         st.caption(f"Region: India (IST)")
-        st.caption(f"Session uptime: {uptime} min")
+        st.caption(f"Session uptime: {int((time.time() - st.session_state['session_start']) / 60)} min")
+        st.caption(f"Global rating: {avg_rating:.1f}/5 from {rating_count} responses")
+
+        st.divider()
+        st.subheader("Author")
+        st.write("Mehul Kumar")
+        st.write("UniAssist India Project")
+
+        st.divider()
+        st.caption("© 2026 UniAssist India. All rights reserved.")
 
 
-def translate_answer(text: str, lang: str) -> str:
-    if lang == "English":
-        return text
-    return f"[{lang} preview] {text}"
+def role_login_gate(role: str, label: str) -> tuple[bool, str]:
+    session_roles = st.session_state["role_sessions"]
+    if role in session_roles:
+        user = session_roles[role]
+        st.success(f"{label}: logged in as {user}")
+        if st.button(f"Logout {label}", key=f"logout_{role}"):
+            session_roles.pop(role, None)
+            st.rerun()
+        return True, user
+
+    st.info(f"{label}: login required")
+    with st.form(f"login_{role}"):
+        username = st.text_input("Username", key=f"user_{role}")
+        password = st.text_input("Password", type="password", key=f"pass_{role}")
+        submit = st.form_submit_button("Login")
+        if submit:
+            rec = USERS.get(username)
+            if rec and rec["password"] == password and rec["role"] == role:
+                session_roles[role] = username
+                st.session_state["active_user"] = username
+                st.success("Login successful")
+                st.rerun()
+            st.error("Invalid role credentials")
+    return False, "guest"
 
 
 def in_scope(query: str) -> bool:
     return len(tokenize(query) & SCOPE_KEYWORDS) > 0
 
 
-def log_query(query: str, result: dict, dept: str, sem: int, escalated: bool) -> None:
+def log_query(query: str, result: dict, dept: str, sem: int, escalated: bool, user: str, role: str) -> None:
     if not st.session_state["consent"]:
         return
     append_row(
         QUERY_LOG_FILE,
         {
             "timestamp": datetime.now().isoformat(timespec="seconds"),
-            "user": st.session_state["username"],
-            "role": st.session_state["role"],
+            "user": user,
+            "role": role,
             "university": st.session_state["selected_university"],
             "department": dept,
             "semester": sem,
@@ -378,23 +525,27 @@ def log_query(query: str, result: dict, dept: str, sem: int, escalated: bool) ->
     )
 
 
-def assistant_tab(kb_df: pd.DataFrame) -> None:
+def assistant_tab(kb_df: pd.DataFrame, key_prefix: str, user: str, role: str) -> None:
     st.subheader("Academic Assistant")
     c1, c2, c3 = st.columns(3)
     with c1:
-        dept = st.selectbox("Department", ["CSE", "ECE", "ME", "CE"], key="department")
+        dept = st.selectbox("Department", ["CSE", "ECE", "ME", "CE"], key=f"{key_prefix}_department")
     with c2:
-        sem = st.selectbox("Semester", list(range(1, 9)), key="semester")
+        sem = st.selectbox("Semester", list(range(1, 9)), key=f"{key_prefix}_semester")
     with c3:
         category_filter = st.selectbox(
             "Category",
             ["All", "attendance", "exam", "internship", "general"],
-            key="assistant_category",
+            key=f"{key_prefix}_assistant_category",
         )
 
-    with st.form("qa_form"):
-        query = st.text_area("Ask your query", placeholder="Example: minimum attendance for semester exams")
-        top_k = st.slider("Top sources", 1, 5, 3, key="assistant_top_k")
+    with st.form(f"qa_form_{key_prefix}"):
+        query = st.text_area(
+            "Ask your query",
+            placeholder="Example: minimum attendance for semester exams",
+            key=f"{key_prefix}_query",
+        )
+        top_k = st.slider("Top sources", 1, 5, 3, key=f"{key_prefix}_assistant_top_k")
         asked = st.form_submit_button("Get answer")
 
     if asked:
@@ -423,7 +574,7 @@ def assistant_tab(kb_df: pd.DataFrame) -> None:
                 }
             )
 
-        st.markdown("<div class='answer-card'>" + translate_answer(shown_answer, st.session_state["preferred_language"]) + "</div>", unsafe_allow_html=True)
+        st.markdown("<div class='answer-card'>" + shown_answer + "</div>", unsafe_allow_html=True)
         st.caption(
             f"Confidence: {result['confidence']:.2f} | Trust score: {trust_score}/100 | Latency: {result['latency_ms']} ms"
         )
@@ -442,48 +593,29 @@ def assistant_tab(kb_df: pd.DataFrame) -> None:
             "query": query,
             "response": shown_answer,
             "confidence": result["confidence"],
+            "user": user,
+            "role": role,
         }
         st.session_state["conversation"].append({"q": query, "a": shown_answer})
-        log_query(query, result, dept, sem, escalated)
+        log_query(query, result, dept, sem, escalated, user=user, role=role)
 
-    st.markdown("### Feedback")
-    if st.session_state["last_response"]:
-        if st.button("Escalate to academic office", key="escalate_btn"):
-            lr = st.session_state["last_response"]
+    if st.button("Escalate to academic office", key=f"{key_prefix}_escalate_btn"):
+        lr = st.session_state.get("last_response")
+        if not lr:
+            st.warning("Ask at least one question before escalating.")
+        else:
             append_row(
                 TICKETS_FILE,
                 {
                     "timestamp": datetime.now().isoformat(timespec="seconds"),
-                    "user": st.session_state["username"],
-                    "role": st.session_state["role"],
+                    "user": lr.get("user", user),
+                    "role": lr.get("role", role),
                     "query": lr["query"],
                     "priority": "high" if lr["confidence"] < st.session_state["similarity_threshold"] else "normal",
                     "status": "open",
                 },
             )
             st.success("Escalation ticket created")
-
-        with st.form("feedback_form"):
-            feedback = st.radio("Was this helpful?", ["Helpful", "Not helpful"], horizontal=True, key="feedback_choice")
-            comment = st.text_input("Correction (optional)", key="feedback_comment")
-            submitted = st.form_submit_button("Submit feedback")
-            if submitted:
-                lr = st.session_state["last_response"]
-                append_row(
-                    FEEDBACK_FILE,
-                    {
-                        "timestamp": datetime.now().isoformat(timespec="seconds"),
-                        "user": st.session_state["username"],
-                        "role": st.session_state["role"],
-                        "university": st.session_state["selected_university"],
-                        "query": lr["query"],
-                        "response": lr["response"],
-                        "confidence": lr["confidence"],
-                        "feedback": feedback,
-                        "comment": comment,
-                    },
-                )
-                st.success("Feedback captured")
 
     with st.expander("Conversation memory"):
         history = st.session_state["conversation"][-8:]
@@ -496,13 +628,14 @@ def assistant_tab(kb_df: pd.DataFrame) -> None:
                 st.write("---")
 
 
-def organisation_tab() -> None:
-    st.subheader("Organisation Desk")
-    st.caption("Post internship opportunities as additional verified sources.")
-    with st.form("org_source_form"):
-        program = st.text_input("Program / Opportunity title", key="org_program")
-        eligibility = st.text_input("Eligibility summary", key="org_eligibility")
-        deadline = st.date_input("Deadline", value=date.today(), key="org_deadline")
+def teacher_tab(user: str) -> None:
+    st.subheader("Teacher Desk")
+    st.caption(f"Logged in as {user}")
+    st.caption("Publish verified internship/academic opportunities as additional sources.")
+    with st.form("teacher_source_form"):
+        program = st.text_input("Program / Opportunity title", key="teacher_program")
+        eligibility = st.text_input("Eligibility summary", key="teacher_eligibility")
+        deadline = st.date_input("Deadline", value=date.today(), key="teacher_deadline")
         submit = st.form_submit_button("Publish source")
         if submit and program.strip() and eligibility.strip():
             row = pd.DataFrame(
@@ -512,7 +645,7 @@ def organisation_tab() -> None:
                         "answer": f"Eligibility: {eligibility}. Deadline: {deadline}. Apply via placement cell.",
                         "university": st.session_state["selected_university"],
                         "category": "internship",
-                        "source": "organisation_portal",
+                        "source": "teacher_portal",
                         "last_updated": str(date.today()),
                         "policy_link": "https://www.aicte-india.org/",
                     }
@@ -523,7 +656,7 @@ def organisation_tab() -> None:
             st.success("New source added to knowledge base")
 
 
-def student_toolkit_tab() -> None:
+def student_toolkit_tab(user: str) -> None:
     st.subheader("Student Toolkit")
 
     st.markdown("### What-if Simulator")
@@ -551,7 +684,7 @@ def student_toolkit_tab() -> None:
                 ALERTS_FILE,
                 {
                     "timestamp": datetime.now().isoformat(timespec="seconds"),
-                    "user": st.session_state["username"],
+                    "user": user,
                     "alert_type": "attendance_risk",
                     "details": f"Projected attendance {proj_att}",
                 },
@@ -637,8 +770,56 @@ def analytics_tab() -> None:
         st.dataframe(pd.DataFrame(outcomes), use_container_width=True)
 
 
-def parents_tab() -> None:
-    st.subheader("Parents Overview")
+def feedback_and_ratings_tab() -> None:
+    st.subheader("Feedback and Ratings")
+    feedback_df = pd.read_csv(FEEDBACK_FILE)
+    if "rating" not in feedback_df.columns:
+        feedback_df["rating"] = ""
+
+    rating_series = pd.to_numeric(feedback_df["rating"], errors="coerce").dropna()
+    avg_rating = float(rating_series.mean()) if not rating_series.empty else 0.0
+    total_ratings = int(rating_series.count())
+    st.metric("Global Rating", f"{avg_rating:.1f}/5", total_ratings)
+    st.caption("Ratings are visible to all users.")
+
+    with st.form("global_feedback_form"):
+        user = st.text_input("Your username (optional)", value=st.session_state.get("active_user", "guest"))
+        role = st.selectbox("Role", ["guest", "student", "teacher", "parent", "developer_admin"], key="global_role")
+        feedback = st.radio("Feedback type", ["Helpful", "Not helpful"], horizontal=True)
+        rating = st.slider("Rating", 1, 5, 4)
+        comment = st.text_area("Comments / Suggestions")
+        submit = st.form_submit_button("Submit feedback")
+        if submit:
+            append_row(
+                FEEDBACK_FILE,
+                {
+                    "timestamp": datetime.now().isoformat(timespec="seconds"),
+                    "user": user or "guest",
+                    "role": role,
+                    "university": st.session_state["selected_university"],
+                    "query": "",
+                    "response": "",
+                    "confidence": "",
+                    "feedback": feedback,
+                    "rating": rating,
+                    "comment": comment,
+                },
+            )
+            st.success("Feedback submitted")
+
+    latest_feedback = pd.read_csv(FEEDBACK_FILE)
+    st.markdown("### Feedback Data")
+    st.dataframe(latest_feedback.tail(50), use_container_width=True)
+    st.download_button(
+        "Download feedback data (CSV)",
+        data=latest_feedback.to_csv(index=False).encode("utf-8"),
+        file_name="feedback_export.csv",
+        mime="text/csv",
+    )
+
+
+def parent_tab() -> None:
+    st.subheader("Parent Overview")
     st.info("Read-only dashboard for progress tracking and official process visibility.")
 
     col1, col2, col3 = st.columns(3)
@@ -752,52 +933,44 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
-    login_sidebar()
+    render_sidebar()
     kb_df = active_kb()
 
-    base_tabs = ["Assistant"]
-    if st.session_state["role"] in ["student", "developer_admin"]:
-        base_tabs.append("Student Toolkit")
-    if st.session_state["role"] in ["student", "developer_admin", "parents"]:
-        base_tabs.append("Parents View")
-    if st.session_state["role"] in ["organisation", "developer_admin"]:
-        base_tabs.append("Organisation Desk")
-    if st.session_state["role"] == "developer_admin":
-        base_tabs.append("Admin Console")
-        base_tabs.append("Analytics")
+    student_t, teacher_t, parent_t, admin_t, feedback_t = st.tabs(
+        ["Student", "Teacher", "Parent", "Developer Admin", "Feedback & Ratings"]
+    )
 
-    tabs = st.tabs(base_tabs)
-    idx = 0
+    with student_t:
+        ok, user = role_login_gate("student", "Student")
+        if ok:
+            assistant_tab(kb_df, key_prefix="student", user=user, role="student")
+            st.divider()
+            student_toolkit_tab(user=user)
 
-    with tabs[idx]:
-        assistant_tab(kb_df)
-    idx += 1
+    with teacher_t:
+        ok, user = role_login_gate("teacher", "Teacher")
+        if ok:
+            teacher_tab(user=user)
 
-    if "Student Toolkit" in base_tabs:
-        with tabs[idx]:
-            student_toolkit_tab()
-        idx += 1
+    with parent_t:
+        ok, _ = role_login_gate("parent", "Parent")
+        if ok:
+            parent_tab()
 
-    if "Parents View" in base_tabs:
-        with tabs[idx]:
-            parents_tab()
-        idx += 1
-
-    if "Organisation Desk" in base_tabs:
-        with tabs[idx]:
-            organisation_tab()
-        idx += 1
-
-    if "Admin Console" in base_tabs:
-        with tabs[idx]:
+    with admin_t:
+        ok, user = role_login_gate("developer_admin", "Developer Admin")
+        if ok:
+            assistant_tab(kb_df, key_prefix="admin", user=user, role="developer_admin")
+            st.divider()
             admin_tab()
-        idx += 1
-
-    if "Analytics" in base_tabs:
-        with tabs[idx]:
+            st.divider()
             analytics_tab()
 
+    with feedback_t:
+        feedback_and_ratings_tab()
+
     st.divider()
+    st.caption("Author: Mehul Kumar")
     st.caption("© 2026 UniAssist India | Dataset-first retrieval system with role-based workflows")
 
 
