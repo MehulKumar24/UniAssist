@@ -61,56 +61,87 @@ st.markdown(
     """
 <style>
 :root {
-  --brand-1: #ff8f1f;
-  --brand-2: #0f8a5f;
-  --brand-3: #1f4ed8;
-  --ink-1: #0f172a;
-  --ink-2: #334155;
-  --muted: #64748b;
-  --line: #cbd5e1;
-  --card: #ffffff;
-}
-.main-banner {
-  border-radius: 18px;
-  padding: 20px 22px;
-  background:
-    radial-gradient(circle at 10% 20%, rgba(255,143,31,0.18) 0, rgba(255,143,31,0.03) 35%),
-    radial-gradient(circle at 95% 5%, rgba(31,78,216,0.16) 0, rgba(31,78,216,0.03) 30%),
-    linear-gradient(120deg, rgba(255,255,255,0.96), rgba(245,250,255,0.96));
-  border: 1px solid rgba(31,78,216,0.22);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-  margin-bottom: 16px;
-  animation: riseIn 0.45s ease-out;
-}
-.main-title { font-size: 36px; font-weight: 800; color: var(--brand-3); letter-spacing: 0.2px; }
-.main-sub { color: var(--ink-2); font-size: 15px; }
-.answer-card {
-  background: var(--card);
-  border-left: 6px solid var(--brand-3);
-  color: var(--ink-1) !important;
-  border-radius: 14px;
-  padding: 16px 18px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.answer-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.11);
-}
-.metric-card {
-  background: #fff;
-  border: 1px solid #dbe4ef;
-  border-radius: 12px;
-  padding: 12px 14px;
-  color: var(--ink-1) !important;
-  box-shadow: 0 4px 12px rgba(2, 6, 23, 0.04);
+  --brand-1: #22d3ee;
+  --brand-2: #38bdf8;
+  --brand-3: #2563eb;
+  --bg-1: #050b16;
+  --bg-2: #0b1324;
+  --panel-1: #101a2f;
+  --panel-2: #0f1a2d;
+  --ink-1: #e6edf8;
+  --ink-2: #b9c6db;
+  --muted: #94a3b8;
+  --line: #2b3d5c;
+  --card: #0f1a2d;
 }
 
 [data-testid="stAppViewContainer"] {
   background:
-    radial-gradient(circle at 100% 0%, rgba(31,78,216,0.06) 0, rgba(31,78,216,0) 35%),
-    radial-gradient(circle at 0% 100%, rgba(15,138,95,0.06) 0, rgba(15,138,95,0) 35%),
-    #f8fafc;
+    radial-gradient(circle at 85% 0%, rgba(34, 211, 238, 0.11) 0, rgba(34, 211, 238, 0.0) 30%),
+    radial-gradient(circle at 10% 90%, rgba(37, 99, 235, 0.14) 0, rgba(37, 99, 235, 0.0) 35%),
+    linear-gradient(135deg, var(--bg-1), var(--bg-2));
+}
+
+[data-testid="stHeader"] {
+  background: rgba(5, 11, 22, 0.65);
+}
+
+[data-testid="stSidebar"] {
+  background: linear-gradient(180deg, #0a1324, #0d1629);
+  border-right: 1px solid var(--line);
+}
+
+[data-testid="stSidebar"] * {
+  color: var(--ink-1) !important;
+}
+
+h1, h2, h3, h4, h5, h6, p, span, div, label {
+  color: var(--ink-1);
+}
+
+.main-banner {
+  border-radius: 20px;
+  padding: 22px 24px;
+  background:
+    radial-gradient(circle at 10% 25%, rgba(34,211,238,0.22) 0, rgba(34,211,238,0.03) 36%),
+    radial-gradient(circle at 90% 5%, rgba(37,99,235,0.24) 0, rgba(37,99,235,0.04) 32%),
+    linear-gradient(120deg, rgba(16,26,47,0.98), rgba(13,22,40,0.98));
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+  margin-bottom: 16px;
+  animation: riseIn 0.45s ease-out;
+}
+.main-title {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: #eaf4ff;
+}
+.main-sub {
+  color: var(--ink-2);
+  font-size: 15px;
+}
+.answer-card {
+  background: var(--card);
+  border-left: 6px solid var(--brand-2);
+  color: var(--ink-1) !important;
+  border-radius: 16px;
+  padding: 16px 18px;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.answer-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.42);
+}
+.metric-card {
+  background: #111d33;
+  border: 1px solid #2f4568;
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--ink-1) !important;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
 }
 
 /* Fix text and input contrast issues */
@@ -120,9 +151,9 @@ st.markdown(
 .stDateInput input,
 div[data-baseweb="select"] > div,
 div[data-baseweb="base-input"] > div {
-  background: #ffffff !important;
+  background: var(--panel-2) !important;
   color: var(--ink-1) !important;
-  border: 1px solid var(--line) !important;
+  border: 1px solid #35507a !important;
   border-radius: 10px !important;
 }
 
@@ -136,29 +167,29 @@ div[data-baseweb="base-input"] > div {
 .stTextArea textarea:focus,
 .stNumberInput input:focus,
 .stDateInput input:focus {
-  border: 1px solid var(--brand-3) !important;
-  box-shadow: 0 0 0 3px rgba(31, 78, 216, 0.12) !important;
+  border: 1px solid var(--brand-1) !important;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.2) !important;
 }
 
 label[data-testid="stWidgetLabel"] p {
-  color: var(--ink-1) !important;
+  color: #d8e7ff !important;
   font-weight: 600 !important;
 }
 
 .stButton > button,
 [data-testid="baseButton-secondary"] {
-  border-radius: 10px !important;
-  border: 1px solid rgba(31, 78, 216, 0.35) !important;
-  background: linear-gradient(90deg, #1f4ed8, #1550b8) !important;
+  border-radius: 11px !important;
+  border: 1px solid rgba(34, 211, 238, 0.35) !important;
+  background: linear-gradient(90deg, #1d4ed8, #0ea5e9) !important;
   color: #ffffff !important;
   transition: transform 0.15s ease, box-shadow 0.2s ease !important;
-  box-shadow: 0 6px 16px rgba(31, 78, 216, 0.24);
+  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.28);
 }
 
 .stButton > button:hover,
 [data-testid="baseButton-secondary"]:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 18px rgba(31, 78, 216, 0.26) !important;
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 0 12px 20px rgba(14, 165, 233, 0.32) !important;
 }
 
 .stTabs [data-baseweb="tab-list"] {
@@ -168,22 +199,33 @@ label[data-testid="stWidgetLabel"] p {
 .stTabs [data-baseweb="tab"] {
   border-radius: 10px;
   padding: 8px 14px;
-  border: 1px solid #dbe4ef;
-  background: #ffffff;
-  color: var(--ink-2);
+  border: 1px solid #324866;
+  background: #0e1a2f;
+  color: #c4d6f1;
 }
 
 .stTabs [aria-selected="true"] {
   color: #ffffff !important;
-  background: linear-gradient(90deg, #1f4ed8, #1550b8) !important;
-  border-color: #1f4ed8 !important;
+  background: linear-gradient(90deg, #1d4ed8, #0ea5e9) !important;
+  border-color: #0ea5e9 !important;
 }
 
 [data-testid="stForm"] {
-  border: 1px solid #e2e8f0 !important;
+  border: 1px solid #314868 !important;
   border-radius: 14px !important;
-  background: #ffffff !important;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+  background: #0f1a2d !important;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+}
+
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stCaptionContainer"] {
+  color: var(--ink-2) !important;
+}
+
+[data-testid="stDataFrame"] {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #2f4568;
 }
 
 @keyframes riseIn {
@@ -365,6 +407,17 @@ def retrieve_dataset_answer(query: str, kb_df: pd.DataFrame, university: str, ca
         filtered = kb_df.copy()
 
     questions = filtered["question"].tolist()
+    if not questions:
+        return {
+            "answer": SAFE_FALLBACK,
+            "confidence": 0.0,
+            "category": "general",
+            "citations": [],
+            "matched_question": None,
+            "latency_ms": 0,
+            "freshness_days": 365,
+        }
+
     embeddings = get_embeddings(tuple(questions))
 
     start = time.perf_counter()
@@ -375,7 +428,25 @@ def retrieve_dataset_answer(query: str, kb_df: pd.DataFrame, university: str, ca
     q_tokens = tokenize(query)
     keyword_scores = np.array([len(q_tokens & tokenize(q)) / max(len(q_tokens), 1) for q in questions])
     bonus = np.where(filtered["category"].values == infer_category(query), 0.05, 0.0)
-    final_scores = (semantic_scores * 0.72) + (keyword_scores * 0.23) + bonus
+
+    # Guard against rare alignment issues (empty/shape mismatch after data updates).
+    semantic_scores = np.asarray(semantic_scores, dtype=float).reshape(-1)
+    keyword_scores = np.asarray(keyword_scores, dtype=float).reshape(-1)
+    bonus = np.asarray(bonus, dtype=float).reshape(-1)
+    aligned = min(len(semantic_scores), len(keyword_scores), len(bonus), len(filtered))
+    if aligned == 0:
+        return {
+            "answer": SAFE_FALLBACK,
+            "confidence": 0.0,
+            "category": "general",
+            "citations": [],
+            "matched_question": None,
+            "latency_ms": latency_ms,
+            "freshness_days": 365,
+        }
+
+    filtered = filtered.head(aligned).copy()
+    final_scores = (semantic_scores[:aligned] * 0.72) + (keyword_scores[:aligned] * 0.23) + bonus[:aligned]
 
     ranked = filtered.copy()
     ranked["score"] = final_scores
