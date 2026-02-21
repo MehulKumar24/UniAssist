@@ -971,7 +971,7 @@ def main() -> None:
 
     st.divider()
     st.caption("Author: Mehul Kumar")
-    st.caption("© 2026 UniAssist India | Dataset-first retrieval system with role-based workflows")
+    st.caption("© 2026 UniAssist India | All rights reserved.")
 
 
 if __name__ == "__main__":
